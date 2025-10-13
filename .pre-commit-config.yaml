@@ -1,23 +1,29 @@
-# .pre-commit-config.yaml
 repos:
-    # Ruff: linting + auto-fix
     - repo: https://github.com/astral-sh/ruff-pre-commit
-      rev: v0.6.5
+      rev: v0.5.7
       hooks:
           - id: ruff
-            args: ['--fix'] # Automatically fix minor issues
-          - id: ruff-format # Ensure code formatting consistency
+            args: [--fix]
+          - id: ruff-format
+            args: [--check, --diff]
 
-    # Black: code formatter
     - repo: https://github.com/psf/black
-      rev: 24.8.0
+      rev: 24.4.2
       hooks:
           - id: black
 
-    # Basic syntax checks for config files
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v4.6.0
       hooks:
           - id: check-yaml
           - id: check-toml
           - id: check-json
+
+    - repo: local
+      hooks:
+          - id: auto-add
+            name: Auto add reformatted files
+            entry: git add .
+            language: system
+            always_run: true
+            pass_filenames: false
