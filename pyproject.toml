@@ -11,3 +11,38 @@ dependencies = [
     "pydantic-settings>=2.4.0",
     "uvicorn[standard]>=0.30.0",
 ]
+
+[dependency-groups]
+dev = [
+    "black>=25.9.0",
+    "mypy>=1.18.2",
+    "pre-commit>=4.3.0",
+    "ruff>=0.14.0",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+# General settings
+line-length = 100
+target-version = "py311"
+fix = true
+
+[tool.ruff.lint]
+# Linter-specific options
+select = ["E", "F", "I"]
+
+[tool.mypy]
+# Target Python version
+python_version = "3.11"
+
+# Enable strict type checking
+strict = true
+
+# Ignore missing type hints from external libraries
+ignore_missing_imports = true
+
+# Do not allow functions without type annotations
+disallow_untyped_defs = true
