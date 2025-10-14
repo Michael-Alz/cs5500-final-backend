@@ -58,6 +58,24 @@ check: format lint typecheck
 	@echo "✅ All code checks passed!"
 
 # -------------------------------------------------
+# GIT & COMMIT HELPERS
+# -------------------------------------------------
+.PHONY: commit
+commit:
+	@echo "🔧 Running pre-commit checks and auto-fixing..."
+	$(UV) pre-commit run --all-files || true
+	@echo "📝 Adding all changes..."
+	git add .
+	@echo "✅ Ready to commit! Run: git commit -m 'your message'"
+
+.PHONY: commit-auto
+commit-auto:
+	@echo "🤖 Auto-committing with pre-commit fixes..."
+	$(UV) pre-commit run --all-files || true
+	git add .
+	git commit -m "Auto-fix: $(shell date '+%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
+
+# -------------------------------------------------
 # CLEANUP
 # -------------------------------------------------
 .PHONY: clean
