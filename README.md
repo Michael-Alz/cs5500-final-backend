@@ -1,25 +1,54 @@
 # CS5500 Final Project Backend
 
-A FastAPI-based RESTful API backend for the CS5500 final project.
+A FastAPI-based RESTful API backend for the CS5500 final project - a classroom engagement system with personalized activities.
 
 ## Features
 
 - **FastAPI** framework with automatic API documentation
-- **RESTful API** endpoints for CRUD operations
-- **Pydantic** models for data validation
-- **Type hints** throughout the codebase
+- **Modular architecture** with separate routers for different features
+- **Pydantic** models for data validation and settings management
+- **Type hints** throughout the codebase with strict mypy checking
+- **Development tools** including Black, Ruff, and pre-commit hooks
 - **Interactive API docs** at `/docs`
+- **Environment-based configuration** with Pydantic Settings
 
 ## API Endpoints
 
+### Core Endpoints
 - `GET /` - Root endpoint with welcome message
-- `GET /health` - Health check endpoint
-- `GET /items` - Get all items
-- `GET /items/{item_id}` - Get specific item by ID
-- `POST /items` - Create new item
-- `PUT /items/{item_id}` - Update existing item
-- `DELETE /items/{item_id}` - Delete item
-- `GET /items/search/{name}` - Search items by name
+- `GET /health` - Health check endpoint with environment info
+
+### Authentication
+- `POST /auth/signup` - User registration (demo)
+
+### Students
+- `GET /students/` - List all students (demo)
+
+## Project Structure
+
+```
+backend/
+├── app/                    # Main application package
+│   ├── __init__.py
+│   ├── main.py            # FastAPI application entry point
+│   ├── core/              # Core configuration and utilities
+│   │   ├── __init__.py
+│   │   └── config.py      # Application settings
+│   ├── models/            # Database models (future)
+│   │   └── __init__.py
+│   ├── routers/           # API route handlers
+│   │   ├── __init__.py
+│   │   ├── auth.py        # Authentication routes
+│   │   └── students.py    # Student management routes
+│   └── schemas/           # Pydantic schemas (future)
+│       └── __init__.py
+├── tests/                  # Test files
+│   └── __init__.py
+├── Makefile              # Development shortcuts
+├── pyproject.toml        # Project configuration and dependencies
+├── uv.lock              # Dependency lock file
+└── README.md            # This file
+```
 
 ## Quick Start
 
@@ -35,11 +64,33 @@ pyenv local 3.11.9
 pyenv install 3.11.9  # if not already installed
 
 # Install dependencies and run
-uv sync
-uv run python main.py
+make setup  # Sets up development environment
+make run    # Starts the FastAPI server
 ```
 
 Then visit http://localhost:8000/docs to see the interactive API documentation!
+
+## Development Commands
+
+The project includes a comprehensive Makefile for common development tasks:
+
+```bash
+# Setup development environment
+make setup          # Install dependencies and pre-commit hooks
+
+# Running the application
+make run            # Start the FastAPI server with auto-reload
+
+# Code quality checks
+make format         # Format code with Black
+make lint           # Lint code with Ruff
+make typecheck      # Type checking with Mypy
+make precommit      # Run pre-commit hooks on all files
+make check          # Run all code quality checks
+
+# Cleanup
+make clean          # Remove temporary files and caches
+```
 
 ## Prerequisites
 
@@ -82,19 +133,20 @@ python --version
 ### 4. Install dependencies and run the application
 
 ```bash
-# Install dependencies using uv
-uv sync
-
-# Activate the virtual environment
-source .venv/bin/activate
+# Install dependencies and setup development environment
+make setup
 
 # Run the FastAPI application
-uv run python main.py
+make run
 ```
 
 Alternatively, you can run directly with uv:
 ```bash
-uv run python main.py
+# Install dependencies
+uv sync
+
+# Run the application
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
 ## Running the Application
@@ -107,15 +159,14 @@ Once the application is running, you can access:
 
 ## Development
 
-### Project Structure
+### Code Quality Tools
 
-```
-backend/
-├── main.py              # FastAPI application
-├── pyproject.toml       # Project configuration and dependencies
-├── README.md           # This file
-└── .python-version     # Python version specification
-```
+This project uses several tools to maintain code quality:
+
+- **Black**: Code formatting with 100-character line length
+- **Ruff**: Fast Python linter with auto-fixing
+- **Mypy**: Static type checking with strict mode
+- **Pre-commit**: Git hooks for automated quality checks
 
 ### Adding Dependencies
 
@@ -126,62 +177,75 @@ To add new dependencies:
 uv add package-name
 
 # Add a development dependency
-uv add --dev package-name
+uv add --group dev package-name
+```
+
+### Configuration
+
+The application uses Pydantic Settings for configuration management. Environment variables can be set in a `.env` file:
+
+```bash
+# .env file example
+APP_NAME=Classroom Backend
+APP_ENV=dev
+PORT=8000
 ```
 
 ### Running Tests
 
 ```bash
 # Run tests (when you add them)
+make test
+# or
 uv run pytest
 ```
 
 ## API Usage Examples
 
-### Create an item
+### Health Check
 ```bash
-curl -X POST "http://localhost:8000/items" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "name": "Sample Item",
-       "description": "A sample item for testing",
-       "price": 29.99,
-       "is_available": true
-     }'
+curl -X GET "http://localhost:8000/health"
 ```
 
-### Get all items
+### User Registration (Demo)
 ```bash
-curl -X GET "http://localhost:8000/items"
+curl -X POST "http://localhost:8000/auth/signup" \
+     -H "Content-Type: application/json"
 ```
 
-### Get a specific item
+### List Students (Demo)
 ```bash
-curl -X GET "http://localhost:8000/items/1"
+curl -X GET "http://localhost:8000/students/"
 ```
 
-### Update an item
+### Root Endpoint
 ```bash
-curl -X PUT "http://localhost:8000/items/1" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "name": "Updated Item Name",
-       "price": 39.99
-     }'
-```
-
-### Delete an item
-```bash
-curl -X DELETE "http://localhost:8000/items/1"
+curl -X GET "http://localhost:8000/"
 ```
 
 ## Environment Variables
 
-Currently, the application uses in-memory storage for demo purposes. For production, you would typically configure:
+The application uses Pydantic Settings for configuration. You can set these environment variables:
+
+- `APP_NAME`: Application name (default: "Classroom Backend")
+- `APP_ENV`: Environment (default: "dev")
+- `PORT`: Server port (default: 8000)
+
+Create a `.env` file in the project root to override defaults:
+
+```bash
+APP_NAME=My Classroom API
+APP_ENV=production
+PORT=8080
+```
+
+For production, you would typically configure:
 
 - Database connection strings
-- API keys
+- API keys and secrets
 - Environment-specific settings
+- CORS origins
+- Authentication secrets
 
 ## Contributing
 
