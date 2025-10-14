@@ -88,6 +88,10 @@ make typecheck      # Type checking with Mypy
 make precommit      # Run pre-commit hooks on all files
 make check          # Run all code quality checks
 
+# Git workflow
+make commit         # Auto-fix code and stage changes (ready for commit)
+make commit-auto    # Auto-fix, stage, and commit with timestamp
+
 # Cleanup
 make clean          # Remove temporary files and caches
 ```
