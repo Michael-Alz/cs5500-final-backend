@@ -67,3 +67,10 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*.pyo" -delete
 	@echo "✨ Cleanup done."
+
+# -------------------------------------------------
+# RUNNING TESTS
+# -------------------------------------------------
+test:
+	@echo "🧪 Running tests..."
+	uv run pytest -v
