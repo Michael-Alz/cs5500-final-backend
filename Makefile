@@ -33,7 +33,7 @@ dev:
 	@echo "🐳 Starting database and pgAdmin..."
 	docker-compose up -d
 	@echo "⏳ Waiting for database to be ready..."
-	sleep 15
+	sleep 10
 	@echo "🔍 Checking database connection..."
 	@until docker exec 5500_database pg_isready -U qr_survey_user -d qr_survey_db; do echo "Waiting for database..."; sleep 2; done
 	@echo "🔄 Running migrations..."
@@ -123,6 +123,24 @@ docker-pgadmin:
 	@echo "✅ 5500 database is running on localhost:5432"
 	@echo "✅ pgAdmin is running on localhost:5050"
 	@echo "📋 Login: admin@qrsurvey.com / admin_password"
+
+.PHONY: docker-full
+docker-full:
+	@echo "🚀 Starting full 5500 stack (backend + database + pgAdmin)..."
+	docker-compose up -d
+	@echo "⏳ Waiting for services to be ready..."
+	sleep 30
+	@echo "🔍 Checking database connection..."
+	@until docker exec 5500_database pg_isready -U qr_survey_user -d qr_survey_db; do echo "Waiting for database..."; sleep 2; done
+	@echo "🔄 Running database migrations..."
+	docker-compose exec backend uv run alembic upgrade head
+	@echo "🌱 Seeding database..."
+	docker-compose exec backend uv run python scripts/seed.py
+	@echo "✅ Full 5500 stack is running!"
+	@echo "🚀 Backend: http://localhost:8000"
+	@echo "📊 Database: localhost:5432"
+	@echo "🌐 pgAdmin: http://localhost:5050"
+	@echo "📋 pgAdmin Login: admin@qrsurvey.com / admin_password"
 
 .PHONY: docker-down
 docker-down:

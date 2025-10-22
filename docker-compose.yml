@@ -1,8 +1,36 @@
-# 5500 Database Services
-# This compose file only contains database services (PostgreSQL + pgAdmin)
-# The 5500 backend runs separately for development
+# 5500 Full Stack Services
+# This compose file contains all services: backend, database, and pgAdmin
 
 services:
+  # FastAPI Backend Application
+  backend:
+    build: .
+    container_name: 5500_backend
+    environment:
+      - APP_NAME=5500 Backend
+      - APP_ENV=production
+      - DATABASE_URL=postgresql://qr_survey_user:qr_survey_password@database:5432/qr_survey_db
+      - JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
+      - JWT_ALGORITHM=HS256
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+      - PUBLIC_APP_URL=http://localhost:8000
+    ports:
+      - "8000:80"
+    volumes:
+      - ./alembic:/app/alembic
+    networks:
+      - 5500_network
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
   # PostgreSQL Database
   database:
     image: postgres:15-alpine
@@ -20,6 +48,12 @@ services:
     networks:
       - 5500_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qr_survey_user -d qr_survey_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # pgAdmin for database management
   pgadmin:

@@ -151,6 +151,7 @@ make db-reset       # Reset database (removes all data and reseeds)
 # Docker commands (optional)
 make docker-up      # Start PostgreSQL with Docker
 make docker-pgadmin  # Start PostgreSQL + pgAdmin with Docker
+make docker-full    # Start full stack (backend + database + pgAdmin)
 make docker-down    # Stop Docker services
 make docker-logs    # Show Docker logs
 make docker-reset   # Reset database (removes all data)
@@ -238,13 +239,37 @@ uv run uvicorn app.main:app --reload --port 8000
 
 ## Running the Application
 
-Once the application is running, you can access:
+### Option 1: Full Docker Stack (Recommended)
+Run everything in Docker containers:
+
+```bash
+# Start the complete stack (backend + database + pgAdmin)
+make docker-full
+
+# Or use the convenience script
+./start-docker.sh
+```
+
+### Option 2: Local Development
+Run the backend locally with Docker database:
+
+```bash
+# Start database and pgAdmin
+make docker-pgadmin
+
+# Run backend locally
+make dev
+```
+
+### Access Points
+
+Once running, you can access:
 
 - **API Base URL**: http://localhost:8000
 - **Interactive API Documentation**: http://localhost:8000/docs
 - **Alternative API Documentation**: http://localhost:8000/redoc
 - **PostgreSQL Database**: localhost:5432
-- **pgAdmin (optional)**: http://localhost:5050 (admin@qrsurvey.com / admin_password)
+- **pgAdmin**: http://localhost:5050 (admin@qrsurvey.com / admin_password)
 
 ## Database Management with pgAdmin
 
