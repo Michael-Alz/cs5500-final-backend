@@ -1,0 +1,48 @@
+# 5500 Database Services
+# This compose file only contains database services (PostgreSQL + pgAdmin)
+# The 5500 backend runs separately for development
+
+services:
+  # PostgreSQL Database
+  database:
+    image: postgres:15-alpine
+    container_name: 5500_database
+    environment:
+      POSTGRES_DB: qr_survey_db
+      POSTGRES_USER: qr_survey_user
+      POSTGRES_PASSWORD: qr_survey_password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - 5500_postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - 5500_network
+    restart: unless-stopped
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: 5500_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@qrsurvey.com
+      PGADMIN_DEFAULT_PASSWORD: admin_password
+    ports:
+      - "5050:80"
+    volumes:
+      - 5500_pgadmin_data:/var/lib/pgadmin
+    networks:
+      - 5500_network
+    depends_on:
+      - database
+    restart: unless-stopped
+
+volumes:
+  5500_postgres_data:
+  5500_pgadmin_data:
+
+networks:
+  5500_network:
+    driver: bridge
+

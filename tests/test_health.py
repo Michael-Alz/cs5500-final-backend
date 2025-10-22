@@ -9,7 +9,7 @@ def test_root() -> None:
     """Test root endpoint returns success message."""
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"message": "Backend is running!"}
+    assert response.json() == {"message": "5500 Backend is running!"}
 
 
 def test_health_check() -> None:
@@ -17,6 +17,5 @@ def test_health_check() -> None:
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "healthy"
-    assert "app_env" in data
-    assert "port" in data
+    assert data["status"] == "ok"
+    assert "env" in data

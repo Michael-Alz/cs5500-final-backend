@@ -27,6 +27,27 @@ run:
 	@echo "🚀 Starting FastAPI app..."
 	$(UV) uvicorn $(APP):app --reload --port $(PORT)
 
+.PHONY: dev
+dev:
+	@echo "🚀 Starting development environment..."
+	@echo "🐳 Starting database and pgAdmin..."
+	docker-compose up -d
+	@echo "⏳ Waiting for database to be ready..."
+	sleep 15
+	@echo "🔍 Checking database connection..."
+	@until docker exec 5500_database pg_isready -U qr_survey_user -d qr_survey_db; do echo "Waiting for database..."; sleep 2; done
+	@echo "🔄 Running migrations..."
+	$(UV) alembic upgrade head
+	@echo "🌱 Seeding database..."
+	$(UV) python scripts/seed.py
+	@echo "🚀 Starting FastAPI backend..."
+	@echo "✅ Development environment ready!"
+	@echo "📊 Database: localhost:5432"
+	@echo "🌐 pgAdmin: http://localhost:5050"
+	@echo "🚀 Backend: http://localhost:8000"
+	@echo "📋 Press Ctrl+C to stop the backend"
+	$(UV) uvicorn $(APP):app --reload --port $(PORT)
+
 # -------------------------------------------------
 # CODE QUALITY CHECKS
 # -------------------------------------------------
@@ -85,6 +106,102 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*.pyo" -delete
 	@echo "✨ Cleanup done."
+
+# -------------------------------------------------
+# DOCKER COMMANDS
+# -------------------------------------------------
+.PHONY: docker-up
+docker-up:
+	@echo "🐳 Starting 5500 database with Docker..."
+	docker-compose up -d database
+	@echo "✅ 5500 database is running on localhost:5432"
+
+.PHONY: docker-pgadmin
+docker-pgadmin:
+	@echo "🐳 Starting 5500 database and pgAdmin..."
+	docker-compose up -d
+	@echo "✅ 5500 database is running on localhost:5432"
+	@echo "✅ pgAdmin is running on localhost:5050"
+	@echo "📋 Login: admin@qrsurvey.com / admin_password"
+
+.PHONY: docker-down
+docker-down:
+	@echo "🛑 Stopping Docker services..."
+	docker-compose down
+	@echo "✅ Docker services stopped"
+
+.PHONY: docker-logs
+docker-logs:
+	@echo "📋 Showing Docker logs..."
+	docker-compose logs -f database
+
+.PHONY: docker-reset
+docker-reset:
+	@echo "🔄 Resetting 5500 database..."
+	docker-compose down -v
+	docker-compose up -d database
+	@echo "✅ 5500 database reset complete"
+
+.PHONY: docker-rebuild
+docker-rebuild:
+	@echo "🔄 Completely rebuilding Docker environment..."
+	@echo "🛑 Stopping and removing containers and volumes..."
+	docker-compose down -v
+	@echo "🐳 Starting fresh database and pgAdmin..."
+	docker-compose up -d
+	@echo "⏳ Waiting for database to be ready..."
+	sleep 20
+	@echo "🔍 Checking database connection..."
+	@until docker exec 5500_database pg_isready -U qr_survey_user -d qr_survey_db; do echo "Waiting for database..."; sleep 2; done
+	@echo "🔄 Running database migrations..."
+	$(UV) alembic upgrade head
+	@echo "🌱 Seeding database with sample data..."
+	$(UV) python scripts/seed.py
+	@echo "✅ Complete rebuild finished!"
+	@echo "📊 Database: localhost:5432"
+	@echo "🌐 pgAdmin: http://localhost:5050"
+	@echo "📋 Login: admin@qrsurvey.com / admin_password"
+
+.PHONY: docker-build
+docker-build:
+	@echo "🔨 Building 5500 backend Docker image..."
+	docker build -t 5500-backend .
+
+.PHONY: docker-run
+docker-run:
+	@echo "🚀 Running 5500 backend in Docker..."
+	docker run -p 8000:8000 --env-file .env 5500-backend
+
+.PHONY: db-shell
+db-shell:
+	@echo "🐚 Connecting to 5500 database shell..."
+	docker-compose exec database psql -U qr_survey_user -d qr_survey_db
+
+.PHONY: db-backup
+db-backup:
+	@echo "💾 Creating 5500 database backup..."
+	docker-compose exec database pg_dump -U qr_survey_user qr_survey_db > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	@echo "✅ Backup created"
+
+# -------------------------------------------------
+# DATABASE COMMANDS
+# -------------------------------------------------
+.PHONY: db-migrate
+db-migrate:
+	@echo "🔄 Running database migrations..."
+	$(UV) alembic upgrade head
+
+.PHONY: db-seed
+db-seed:
+	@echo "🌱 Seeding database..."
+	$(UV) python scripts/seed.py
+
+.PHONY: db-reset
+db-reset:
+	@echo "🔄 Resetting database..."
+	rm -f dev.db
+	$(UV) alembic upgrade head
+	$(UV) python scripts/seed.py
 
 # -------------------------------------------------
 # RUNNING TESTS
