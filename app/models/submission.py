@@ -7,7 +7,7 @@ from sqlalchemy.sql import func
 from app.db import Base
 
 
-class Submission(Base):  # type: ignore[misc]
+class Submission(Base):
     __tablename__ = "submissions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

@@ -11,6 +11,7 @@ import json
 import sys
 import uuid
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -28,7 +29,9 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def calculate_sample_scores(answers: dict, survey_template_questions: list) -> dict:
+def calculate_sample_scores(
+    answers: dict[str, str], survey_template_questions: list[dict[str, Any]]
+) -> dict[str, int]:
     """Calculate total scores for each category based on sample student answers."""
     all_categories = set()
     for question in survey_template_questions:

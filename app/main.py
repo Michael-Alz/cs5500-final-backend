@@ -48,6 +48,6 @@ def health_check() -> dict[str, str]:
 
 
 @app.get("/favicon.ico")
-def favicon():
+def favicon() -> str:
     """Return empty response for favicon requests."""
     return ""

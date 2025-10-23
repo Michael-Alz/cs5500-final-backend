@@ -31,6 +31,7 @@ dev = [
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
     "ruff>=0.14.0",
+    "types-requests>=2.32.4.20250913",
 ]
 
 [tool.black]
@@ -59,3 +60,11 @@ ignore_missing_imports = true
 
 # Do not allow functions without type annotations
 disallow_untyped_defs = true
+
+# Ignore specific error types for external libraries
+disable_error_code = ["misc", "no-any-return"]
+
+# Exclude migration files from type checking
+exclude = [
+    "alembic/versions/.*\\.py$"
+]

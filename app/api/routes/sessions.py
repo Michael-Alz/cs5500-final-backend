@@ -1,4 +1,5 @@
 import secrets
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import and_, func
@@ -64,6 +65,8 @@ def create_session(
     # Build QR URL
     qr_url = f"{settings.public_app_url}/join?s={join_token}"
 
+    survey_schema_data: list[dict[str, Any]] = template.questions_json or []  # type: ignore[assignment]
+    assert isinstance(survey_schema_data, list)
     return SessionOut(
         session_id=str(session.id),
         course_id=str(session.course_id),
@@ -71,7 +74,7 @@ def create_session(
         closed_at=session.closed_at,  # type: ignore[arg-type]
         join_token=str(session.join_token),
         qr_url=qr_url,
-        survey_schema=template.questions_json or [],  # type: ignore[arg-type]
+        survey_schema=survey_schema_data,
     )
 
 
@@ -120,14 +123,15 @@ def get_session_submissions(
     # Get submissions
     submissions = db.query(Submission).filter(Submission.session_id == session_id).all()
 
-    items = [
-        SubmissionItem(
-            student_name=str(sub.student_name),
-            answers=dict(sub.answers_json) if sub.answers_json else {},
-            total_scores=dict(sub.total_scores) if sub.total_scores else {},
-            created_at=sub.created_at,  # type: ignore[arg-type]
+    items = []
+    for sub in submissions:
+        items.append(
+            SubmissionItem(
+                student_name=str(sub.student_name),
+                answers=dict(sub.answers_json) if sub.answers_json else {},
+                total_scores=dict(sub.total_scores) if sub.total_scores else {},
+                created_at=sub.created_at,  # type: ignore[arg-type]
+            )
         )
-        for sub in submissions
-    ]
 
     return SubmissionsOut(session_id=session_id, count=len(items), items=items)

@@ -7,7 +7,7 @@ from sqlalchemy.sql import func
 from app.db import Base
 
 
-class ClassSession(Base):  # type: ignore[misc]
+class ClassSession(Base):
     __tablename__ = "sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

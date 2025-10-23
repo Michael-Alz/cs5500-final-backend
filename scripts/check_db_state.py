@@ -21,7 +21,7 @@ sys.path.insert(0, str(project_root))
 from app.db import get_db  # noqa: E402
 
 
-def check_database_state():
+def check_database_state() -> bool:
     """Check the current state of the database and report any issues."""
     print("🔍 Checking database state...")
     print("=" * 50)
@@ -119,7 +119,7 @@ def check_database_state():
         count = result.scalar()
         print(f"   Surveys in database: {count}")
 
-        if count > 0:
+        if count and count > 0:
             # Check for sample surveys
             result = db.execute(text("SELECT title FROM surveys LIMIT 3;"))
             titles = [row[0] for row in result]

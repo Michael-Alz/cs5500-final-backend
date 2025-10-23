@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
@@ -11,7 +13,11 @@ from app.schemas.public import PublicJoinOut, SubmissionIn, SubmissionOut
 router = APIRouter()
 
 
-def calculate_survey_scores(session: ClassSession, student_answers: dict, db: Session) -> dict:
+def calculate_survey_scores(
+    session: ClassSession,
+    student_answers: dict[str, str],
+    db: Session,
+) -> dict[str, int]:
     """Calculate total scores for each category based on student answers.
 
     This function dynamically detects all categories from the survey template
@@ -27,7 +33,9 @@ def calculate_survey_scores(session: ClassSession, student_answers: dict, db: Se
 
     # Dynamically extract all categories from the survey template
     all_categories = set()
-    for question in survey_template.questions_json:
+    questions_data: list[dict[str, Any]] = survey_template.questions_json or []  # type: ignore[assignment]
+    assert isinstance(questions_data, list)
+    for question in questions_data:
         for option in question.get("options", []):
             scores = option.get("scores", {})
             all_categories.update(scores.keys())
@@ -36,7 +44,7 @@ def calculate_survey_scores(session: ClassSession, student_answers: dict, db: Se
     total_scores = {category: 0 for category in all_categories}
 
     # Process each question
-    for question in survey_template.questions_json:
+    for question in questions_data:
         question_id = question.get("id")
         if question_id not in student_answers:
             continue

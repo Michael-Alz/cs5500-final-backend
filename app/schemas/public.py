@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class PublicJoinOut(BaseModel):
     session_id: str
     course_title: str
-    survey_schema: List[dict[str, Any]]
+    survey_schema: List[Dict[str, Any]]
     status: str
 
 

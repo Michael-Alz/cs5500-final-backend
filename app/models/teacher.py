@@ -7,7 +7,7 @@ from sqlalchemy.sql import func
 from app.db import Base
 
 
-class Teacher(Base):  # type: ignore[misc]
+class Teacher(Base):
     __tablename__ = "teachers"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

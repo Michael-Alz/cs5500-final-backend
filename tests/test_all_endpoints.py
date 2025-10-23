@@ -26,7 +26,7 @@ class APITester:
         self.token: Optional[str] = None
         self.test_data: Dict[str, Any] = {}
 
-    def _make_request(self, method: str, endpoint: str, **kwargs) -> requests.Response:
+    def _make_request(self, method: str, endpoint: str, **kwargs: Any) -> requests.Response:
         """Make HTTP request with proper headers."""
         url = f"{self.base_url}{endpoint}"
         headers = kwargs.get("headers", {})
@@ -48,7 +48,7 @@ class APITester:
         self.token = data["access_token"]
         return self.token
 
-    def test_health_check(self):
+    def test_health_check(self) -> None:
         """Test health endpoint."""
         response = self._make_request("GET", "/health")
         assert response.status_code == 200
@@ -56,7 +56,7 @@ class APITester:
         assert data["status"] == "ok"
         print("✅ Health check passed")
 
-    def test_authentication(self):
+    def test_authentication(self) -> None:
         """Test authentication endpoints."""
         # Test login
         response = self._make_request(
@@ -73,7 +73,7 @@ class APITester:
         self.token = data["access_token"]
         print("✅ Authentication test passed")
 
-    def test_courses(self):
+    def test_courses(self) -> None:
         """Test course endpoints."""
         # List courses
         response = self._make_request("GET", "/api/courses")
@@ -88,7 +88,7 @@ class APITester:
 
         print("✅ Course listing test passed")
 
-    def test_surveys(self):
+    def test_surveys(self) -> None:
         """Test survey endpoints."""
         # List surveys
         response = self._make_request("GET", "/api/surveys/")
@@ -104,7 +104,7 @@ class APITester:
 
         print("✅ Survey listing test passed")
 
-    def test_create_survey(self):
+    def test_create_survey(self) -> None:
         """Test survey creation."""
         import random
         import time
@@ -271,7 +271,7 @@ class APITester:
         self.test_data["created_survey_id"] = data["id"]
         print("✅ Survey creation test passed")
 
-    def test_sessions(self):
+    def test_sessions(self) -> None:
         """Test session endpoints."""
         if not self.test_data.get("course_id") or not self.test_data.get("survey_id"):
             pytest.skip("No course or survey available for session test")
@@ -293,7 +293,7 @@ class APITester:
         self.test_data["join_token"] = data["join_token"]
         print(f"✅ Session created: {data['session_id']}")
 
-    def test_public_join(self):
+    def test_public_join(self) -> None:
         """Test public join endpoint."""
         if not self.test_data.get("join_token"):
             pytest.skip("No join token available")
@@ -306,7 +306,7 @@ class APITester:
         assert data["status"] == "OPEN"
         print("✅ Public join test passed")
 
-    def test_survey_submission(self):
+    def test_survey_submission(self) -> None:
         """Test survey submission."""
         if not self.test_data.get("join_token"):
             pytest.skip("No join token available")
@@ -328,7 +328,7 @@ class APITester:
         self.test_data["submission_id"] = data["submission_id"]
         print("✅ Survey submission test passed")
 
-    def test_get_submissions(self):
+    def test_get_submissions(self) -> None:
         """Test getting session submissions."""
         if not self.test_data.get("session_id"):
             pytest.skip("No session available")
@@ -353,7 +353,7 @@ class APITester:
 
         print("✅ Get submissions test passed")
 
-    def cleanup_test_data(self):
+    def cleanup_test_data(self) -> None:
         """Clean up all test data."""
         print("🧹 Cleaning up test data...")
 
@@ -398,7 +398,7 @@ class APITester:
         print("✅ Test data cleanup completed")
 
 
-def test_all_endpoints():
+def test_all_endpoints() -> None:
     """Run comprehensive test of all endpoints."""
     tester = APITester()
 
@@ -425,7 +425,7 @@ def test_all_endpoints():
         tester.cleanup_test_data()
 
 
-def test_individual_endpoints():
+def test_individual_endpoints() -> None:
     """Test individual endpoint categories."""
     tester = APITester()
 
