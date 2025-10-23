@@ -23,6 +23,7 @@ A FastAPI-based backend for QR code classroom surveys. Teachers create sessions 
 - `POST /api/courses` - Create course
 - `GET /api/courses` - List teacher's courses
 - `GET /api/surveys` - List available survey templates
+- `POST /api/surveys` - Create new survey template
 - `POST /api/sessions/{course_id}/sessions` - Create session with survey template
 - `POST /api/sessions/{session_id}/close` - Close session
 - `GET /api/sessions/{session_id}/submissions` - Get session submissions
@@ -35,7 +36,7 @@ A FastAPI-based backend for QR code classroom surveys. Teachers create sessions 
 
 The system uses a **global survey library** approach where survey templates are shared across all teachers:
 
-- **Survey Templates**: Pre-defined surveys stored in the `survey_templates` table
+- **Survey Templates**: Pre-defined surveys stored in the `surveys` table
 - **Session Creation**: Teachers select from available templates when creating sessions
 - **Consistency**: All teachers have access to the same survey options
 - **Efficiency**: No need to recreate surveys for each session
@@ -246,8 +247,8 @@ Run everything in Docker containers:
 # Start the complete stack (backend + database + pgAdmin)
 make docker-full
 
-# Or use the convenience script
-./start-docker.sh
+# Or use the development command
+make dev
 ```
 
 ### Option 2: Local Development
@@ -311,6 +312,155 @@ make docker-pgadmin
 - **Run Queries**: Use the Query Tool (SQL icon in toolbar)
 - **View Data**: Right-click any table → "View/Edit Data" → "All Rows"
 - **Export Data**: Right-click table → "Import/Export Data"
+
+## Database Schema Management
+
+### ⚠️ Important: Survey Table Naming
+
+**Current State**: Survey data is stored in the `surveys` table (NOT `survey_templates`).
+
+This project underwent a table rename during development:
+- **OLD**: `survey_templates` table (deprecated)
+- **NEW**: `surveys` table (current)
+
+### Database Migration Guidelines
+
+When making schema changes, follow these steps to avoid confusion:
+
+#### 1. **Always Use Alembic Migrations**
+
+```bash
+# Create a new migration
+uv run alembic revision --autogenerate -m "description of changes"
+
+# Apply migrations
+uv run alembic upgrade head
+
+# Check migration status
+uv run alembic current
+```
+
+#### 2. **Table Naming Conventions**
+
+- **Survey Data**: Always use `surveys` table
+- **Foreign Keys**: `sessions.survey_template_id` → `surveys.id`
+- **Model Class**: `SurveyTemplate` (but maps to `surveys` table)
+
+#### 3. **Before Making Changes**
+
+```bash
+# Quick database state check
+uv run python scripts/check_db_state.py
+
+# Or manual check
+uv run python -c "
+from app.db import get_db
+from sqlalchemy import text
+db = next(get_db())
+result = db.execute(text('SELECT table_name FROM information_schema.tables WHERE table_schema = \\'public\\' ORDER BY table_name;'))
+tables = [row[0] for row in result]
+print('Current tables:', tables)
+"
+```
+
+#### 4. **Common Migration Scenarios**
+
+**Adding a Column:**
+```python
+# In migration file
+op.add_column("surveys", sa.Column("new_field", sa.String(255), nullable=True))
+```
+
+**Renaming a Table:**
+```python
+# In migration file
+op.rename_table("old_name", "new_name")
+```
+
+**Modifying Foreign Keys:**
+```python
+# Drop old constraint
+op.drop_constraint("old_fk_name", "table_name", type_="foreignkey")
+# Add new constraint
+op.create_foreign_key("new_fk_name", "table_name", "referenced_table", ["column"], ["id"])
+```
+
+#### 5. **Verification Steps**
+
+After any migration:
+
+```bash
+# 1. Check table exists
+uv run python -c "
+from app.db import get_db
+from sqlalchemy import text
+db = next(get_db())
+result = db.execute(text('SELECT table_name FROM information_schema.tables WHERE table_schema = \\'public\\' AND table_name = \\'surveys\\';'))
+exists = len(list(result)) > 0
+print('surveys table exists:', exists)
+"
+
+# 2. Test API endpoints
+curl -X GET http://localhost:8000/api/surveys/ -H "Authorization: Bearer $TOKEN"
+
+# 3. Check foreign key constraints
+uv run python -c "
+from app.db import get_db
+from sqlalchemy import text
+db = next(get_db())
+result = db.execute(text('''
+SELECT tc.constraint_name, tc.table_name, kcu.column_name, ccu.table_name AS foreign_table_name
+FROM information_schema.table_constraints AS tc 
+JOIN information_schema.key_column_usage AS kcu ON tc.constraint_name = kcu.constraint_name
+JOIN information_schema.constraint_column_usage AS ccu ON ccu.constraint_name = tc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name = 'sessions';
+'''))
+for row in result:
+    print(f'{row[0]}: {row[1]}.{row[2]} -> {row[3]}')
+"
+```
+
+#### 6. **Emergency Recovery**
+
+If you accidentally create a `survey_templates` table:
+
+```bash
+# Check if both tables exist
+uv run python -c "
+from app.db import get_db
+from sqlalchemy import text
+db = next(get_db())
+result = db.execute(text('SELECT table_name FROM information_schema.tables WHERE table_schema = \\'public\\' AND table_name IN (\\'surveys\\', \\'survey_templates\\');'))
+tables = [row[0] for row in result]
+print('Tables found:', tables)
+"
+
+# If both exist, migrate data and drop old table
+uv run python -c "
+from app.db import get_db
+from sqlalchemy import text
+db = next(get_db())
+try:
+    # Copy data from survey_templates to surveys
+    db.execute(text('INSERT INTO surveys SELECT * FROM survey_templates WHERE NOT EXISTS (SELECT 1 FROM surveys WHERE surveys.id = survey_templates.id);'))
+    # Drop old table
+    db.execute(text('DROP TABLE survey_templates;'))
+    db.commit()
+    print('Migration completed successfully')
+except Exception as e:
+    print('Error:', e)
+    db.rollback()
+"
+```
+
+### Schema Reference
+
+**Current Database Schema:**
+- `teachers` - Teacher accounts
+- `courses` - Teacher courses  
+- `surveys` - Global survey templates (⚠️ NOT survey_templates)
+- `sessions` - Class sessions (references surveys.id)
+- `submissions` - Student responses with calculated scores
 
 ## Development
 

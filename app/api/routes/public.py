@@ -12,6 +12,50 @@ from app.schemas.submission import SubmissionItem, SubmissionsOut
 router = APIRouter()
 
 
+def calculate_survey_scores(session: ClassSession, student_answers: dict, db: Session) -> dict:
+    """Calculate total scores for each category based on student answers.
+
+    This function dynamically detects all categories from the survey template
+    and calculates scores accordingly, supporting any number of categories.
+    """
+    # Get the survey template for this session
+    survey_template = (
+        db.query(SurveyTemplate).filter(SurveyTemplate.id == session.survey_template_id).first()
+    )
+
+    if not survey_template or not survey_template.questions_json:
+        return {}
+
+    # Dynamically extract all categories from the survey template
+    all_categories = set()
+    for question in survey_template.questions_json:
+        for option in question.get("options", []):
+            scores = option.get("scores", {})
+            all_categories.update(scores.keys())
+
+    # Initialize score totals dynamically
+    total_scores = {category: 0 for category in all_categories}
+
+    # Process each question
+    for question in survey_template.questions_json:
+        question_id = question.get("id")
+        if question_id not in student_answers:
+            continue
+
+        selected_answer = student_answers[question_id]
+
+        # Find the matching option and its scores
+        for option in question.get("options", []):
+            if option.get("label") == selected_answer:
+                scores = option.get("scores", {})
+                for category, score in scores.items():
+                    if category in total_scores:
+                        total_scores[category] += score
+                break
+
+    return total_scores
+
+
 @router.get("/join/{join_token}", response_model=PublicJoinOut)
 def get_session_by_token(join_token: str, db: Session = Depends(get_db)) -> PublicJoinOut:
     """Get session information by join token."""
@@ -73,11 +117,15 @@ def submit_survey(
     if existing_submission:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="DUPLICATE_SUBMISSION")
 
-    # Create submission
+    # Calculate scores for the submission
+    total_scores = calculate_survey_scores(session, submission_data.answers, db)
+
+    # Create submission with calculated scores
     submission = Submission(
         session_id=session.id,
         student_name=submission_data.student_name,
         answers_json=submission_data.answers,
+        total_scores=total_scores,
     )
 
     db.add(submission)
@@ -102,6 +150,7 @@ def get_session_submissions(session_id: str, db: Session = Depends(get_db)) -> S
         SubmissionItem(
             student_name=str(sub.student_name),
             answers=dict(sub.answers_json) if sub.answers_json else {},
+            total_scores=dict(sub.total_scores) if sub.total_scores else {},
             created_at=sub.created_at,  # type: ignore[arg-type]
         )
         for sub in submissions

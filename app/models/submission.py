@@ -14,6 +14,7 @@ class Submission(Base):  # type: ignore[misc]
     session_id = Column(String(36), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
     student_name = Column(String(255), nullable=False)
     answers_json = Column(JSON, nullable=False)
+    total_scores = Column(JSON, nullable=True)  # Store calculated scores per category
     created_at = Column(DateTime(timezone=True), default=func.now())
 
     # Relationships

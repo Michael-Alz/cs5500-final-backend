@@ -18,6 +18,7 @@ services:
     ports:
       - "8000:80"
     volumes:
+      - ./app:/app/app
       - ./alembic:/app/alembic
     networks:
       - 5500_network

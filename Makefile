@@ -180,15 +180,6 @@ docker-rebuild:
 	@echo "🌐 pgAdmin: http://localhost:5050"
 	@echo "📋 Login: admin@qrsurvey.com / admin_password"
 
-.PHONY: docker-build
-docker-build:
-	@echo "🔨 Building 5500 backend Docker image..."
-	docker build -t 5500-backend .
-
-.PHONY: docker-run
-docker-run:
-	@echo "🚀 Running 5500 backend in Docker..."
-	docker run -p 8000:8000 --env-file .env 5500-backend
 
 .PHONY: db-shell
 db-shell:
@@ -209,17 +200,12 @@ db-migrate:
 	@echo "🔄 Running database migrations..."
 	$(UV) alembic upgrade head
 
-.PHONY: db-seed
-db-seed:
-	@echo "🌱 Seeding database..."
-	$(UV) python scripts/seed.py
+.PHONY: db-check
+db-check:
+	@echo "🔍 Checking database state..."
+	$(UV) python scripts/check_db_state.py
 
-.PHONY: db-reset
-db-reset:
-	@echo "🔄 Resetting database..."
-	rm -f dev.db
-	$(UV) alembic upgrade head
-	$(UV) python scripts/seed.py
+
 
 # -------------------------------------------------
 # RUNNING TESTS

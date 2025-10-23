@@ -1,35 +1,94 @@
 #!/usr/bin/env python3
 """
-Seed script for 5500 Backend.
-Creates sample data for development and testing.
+Simple database seeding script for 5500 Backend.
+This script populates the database with essential data for development.
 """
 
+import json
 import sys
 import uuid
 from pathlib import Path
 
-# Add the project root to Python path
-project_root = Path(__file__).parent.parent
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+
+# Adjust path to import app modules
+project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-# Import after path setup
+from app.core.config import settings  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
-from app.db import Base, SessionLocal, engine  # noqa: E402
-from app.models import ClassSession, Course, Submission, SurveyTemplate, Teacher  # noqa: E402
+
+# Database setup
+SQLALCHEMY_DATABASE_URL = settings.database_url
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def create_tables() -> None:
-    """Create all tables if they don't exist."""
-    Base.metadata.create_all(bind=engine)
-
-
-def seed_survey_templates() -> None:
-    """Seed survey templates with 8 questions each."""
+def seed_data() -> None:
+    """Seed the database with essential data."""
     db = SessionLocal()
-
     try:
-        # Survey Template A: Learning Style Survey A
-        template_a_questions = [
+        print("🌱 Starting database seeding...")
+
+        # Clear existing data in correct order (respecting foreign keys)
+        print("🗑️  Clearing existing data...")
+        try:
+            db.execute(text("DELETE FROM submissions"))
+        except Exception:
+            pass  # Table might not exist
+        try:
+            db.execute(text("DELETE FROM sessions"))
+        except Exception:
+            pass  # Table might not exist
+        try:
+            db.execute(text("DELETE FROM courses"))
+        except Exception:
+            pass  # Table might not exist
+        try:
+            db.execute(text("DELETE FROM surveys"))
+        except Exception:
+            pass  # Table might not exist
+        try:
+            db.execute(text("DELETE FROM teachers"))
+        except Exception:
+            pass  # Table might not exist
+        db.commit()
+        print("✅ Cleared existing data")
+
+        # Create teacher
+        teacher_id = str(uuid.uuid4())
+        teacher_email = "teacher1@example.com"
+        hashed_password = hash_password("Passw0rd!")
+
+        db.execute(
+            text(
+                "INSERT INTO teachers (id, email, password_hash, created_at) VALUES "
+                "(:id, :email, :password_hash, now())"
+            ),
+            {"id": teacher_id, "email": teacher_email, "password_hash": hashed_password},
+        )
+        print(f"✅ Created teacher: {teacher_email}")
+
+        # Create course
+        course_id = str(uuid.uuid4())
+        course_title = "CS101 — Intro Class"
+
+        db.execute(
+            text(
+                "INSERT INTO courses (id, title, teacher_id, created_at) VALUES "
+                "(:id, :title, :teacher_id, now())"
+            ),
+            {"id": course_id, "title": course_title, "teacher_id": teacher_id},
+        )
+        print(f"✅ Created course: {course_title}")
+
+        # Create surveys
+        survey_a_id = str(uuid.uuid4())
+        survey_b_id = str(uuid.uuid4())
+
+        # Survey A questions
+        survey_a_questions = [
             {
                 "id": "q1",
                 "text": "I prefer to learn by doing hands-on activities.",
@@ -272,8 +331,8 @@ def seed_survey_templates() -> None:
             },
         ]
 
-        # Survey Template B: Learning Style Survey B
-        template_b_questions = [
+        # Survey B questions (different set)
+        survey_b_questions = [
             {
                 "id": "q1",
                 "text": "I prefer to work at my own pace without pressure.",
@@ -516,184 +575,38 @@ def seed_survey_templates() -> None:
             },
         ]
 
-        # Create Template A
-        existing_a = (
-            db.query(SurveyTemplate)
-            .filter(SurveyTemplate.title == "Learning Style Survey A")
-            .first()
+        # Insert Survey A
+        db.execute(
+            text(
+                "INSERT INTO surveys (id, title, questions_json, creator_name, created_at) VALUES "
+                "(:id, :title, :questions_json, :creator_name, now())"
+            ),
+            {
+                "id": survey_a_id,
+                "title": "Learning Style Survey A",
+                "questions_json": json.dumps(survey_a_questions),
+                "creator_name": "system",
+            },
         )
-        if not existing_a:
-            template_a = SurveyTemplate(
-                title="Learning Style Survey A", questions_json=template_a_questions
-            )
-            db.add(template_a)
-            print("✅ Created Learning Style Survey A")
-        else:
-            print("✅ Learning Style Survey A already exists")
+        print("✅ Created survey: Learning Style Survey A")
 
-        # Create Template B
-        existing_b = (
-            db.query(SurveyTemplate)
-            .filter(SurveyTemplate.title == "Learning Style Survey B")
-            .first()
+        # Insert Survey B
+        db.execute(
+            text(
+                "INSERT INTO surveys (id, title, questions_json, creator_name, created_at) VALUES "
+                "(:id, :title, :questions_json, :creator_name, now())"
+            ),
+            {
+                "id": survey_b_id,
+                "title": "Learning Style Survey B",
+                "questions_json": json.dumps(survey_b_questions),
+                "creator_name": "system",
+            },
         )
-        if not existing_b:
-            template_b = SurveyTemplate(
-                title="Learning Style Survey B", questions_json=template_b_questions
-            )
-            db.add(template_b)
-            print("✅ Created Learning Style Survey B")
-        else:
-            print("✅ Learning Style Survey B already exists")
+        print("✅ Created survey: Learning Style Survey B")
 
         db.commit()
-        print("🎉 Survey templates seeded successfully!")
-
-    except Exception as e:
-        print(f"❌ Error seeding survey templates: {e}")
-        db.rollback()
-        raise
-    finally:
-        db.close()
-
-
-def seed_data() -> None:
-    """Seed the database with sample data."""
-    db = SessionLocal()
-
-    try:
-        # 1. Create Teacher
-        print("Creating teacher...")
-        teacher_email = "teacher1@example.com"
-        existing_teacher = db.query(Teacher).filter(Teacher.email == teacher_email).first()
-
-        if not existing_teacher:
-            teacher = Teacher(
-                id=uuid.uuid4(), email=teacher_email, password_hash=hash_password("Passw0rd!")
-            )
-            db.add(teacher)
-            db.commit()
-            db.refresh(teacher)
-            print(f"✅ Created teacher: {teacher.email}")
-        else:
-            teacher = existing_teacher
-            print(f"✅ Teacher already exists: {teacher.email}")
-
-        # 2. Create Course
-        print("Creating course...")
-        course_title = "CS101 — Intro Class"
-        existing_course = (
-            db.query(Course)
-            .filter(Course.teacher_id == teacher.id, Course.title == course_title)
-            .first()
-        )
-
-        if not existing_course:
-            course = Course(id=uuid.uuid4(), teacher_id=teacher.id, title=course_title)
-            db.add(course)
-            db.commit()
-            db.refresh(course)
-            print(f"✅ Created course: {course.title}")
-        else:
-            course = existing_course
-            print(f"✅ Course already exists: {course.title}")
-
-        # 3. Create Session A with fixed token
-        print("Creating Session A...")
-        session_a_token = "Ab3kZp7Q"
-        existing_session_a = (
-            db.query(ClassSession).filter(ClassSession.join_token == session_a_token).first()
-        )
-
-        if not existing_session_a:
-            # Get a survey template to link
-            template_a = (
-                db.query(SurveyTemplate)
-                .filter(SurveyTemplate.title == "Learning Style Survey A")
-                .first()
-            )
-            if not template_a:
-                raise Exception("Learning Style Survey A template not found for session seeding.")
-
-            session_a = ClassSession(
-                id=str(uuid.uuid4()),
-                course_id=str(course.id),
-                survey_template_id=str(template_a.id),
-                join_token=session_a_token,
-            )
-            db.add(session_a)
-            db.commit()
-            db.refresh(session_a)
-            print(f"✅ Created Session A with token: {session_a.join_token}")
-        else:
-            session_a = existing_session_a
-            print(f"✅ Session A already exists with token: {session_a.join_token}")
-
-        # 4. Create Session B with fixed token
-        print("Creating Session B...")
-        session_b_token = "Qx9Lm2Ta"
-        existing_session_b = (
-            db.query(ClassSession).filter(ClassSession.join_token == session_b_token).first()
-        )
-
-        if not existing_session_b:
-            # Get a survey template to link
-            template_b = (
-                db.query(SurveyTemplate)
-                .filter(SurveyTemplate.title == "Learning Style Survey B")
-                .first()
-            )
-            if not template_b:
-                raise Exception("Learning Style Survey B template not found for session seeding.")
-
-            session_b = ClassSession(
-                id=str(uuid.uuid4()),
-                course_id=str(course.id),
-                survey_template_id=str(template_b.id),
-                join_token=session_b_token,
-            )
-            db.add(session_b)
-            db.commit()
-            db.refresh(session_b)
-            print(f"✅ Created Session B with token: {session_b.join_token}")
-        else:
-            session_b = existing_session_b
-            print(f"✅ Session B already exists with token: {session_b.join_token}")
-
-        # 5. Create sample submissions for Session A
-        print("Creating sample submissions...")
-        submissions_data = [
-            ("Alice", {"name": "Alice", "mood": "good"}),
-            ("Bob", {"name": "Bob", "mood": "neutral"}),
-        ]
-
-        for student_name, answers in submissions_data:
-            existing_submission = (
-                db.query(Submission)
-                .filter(
-                    Submission.session_id == session_a.id, Submission.student_name == student_name
-                )
-                .first()
-            )
-
-            if not existing_submission:
-                submission = Submission(
-                    id=str(uuid.uuid4()),
-                    session_id=str(session_a.id),
-                    student_name=student_name,
-                    answers_json=answers,
-                )
-                db.add(submission)
-                print(f"✅ Created submission for {student_name}")
-            else:
-                print(f"✅ Submission already exists for {student_name}")
-
-        db.commit()
-        print("\n🎉 Seed data created successfully!")
-        print(f"📧 Teacher email: {teacher_email}")
-        print("🔑 Teacher password: Passw0rd!")
-        print(f"🔗 Session A token: {session_a_token}")
-        print(f"🔗 Session B token: {session_b_token}")
+        print("\n🎉 Seeding complete!")
 
     except Exception as e:
         print(f"❌ Error seeding data: {e}")
@@ -703,23 +616,5 @@ def seed_data() -> None:
         db.close()
 
 
-def main() -> None:
-    """Main function to run the seed script."""
-    print("🌱 Starting database seeding...")
-
-    # Create tables
-    create_tables()
-    print("✅ Database tables created/verified")
-
-    # Seed survey templates first
-    print("📋 Seeding survey templates...")
-    seed_survey_templates()
-
-    # Seed other data
-    seed_data()
-
-    print("\n✨ Seeding complete!")
-
-
 if __name__ == "__main__":
-    main()
+    seed_data()

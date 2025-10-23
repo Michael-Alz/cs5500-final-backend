@@ -13,7 +13,7 @@ class ClassSession(Base):  # type: ignore[misc]
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     course_id = Column(String(36), ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
     survey_template_id = Column(
-        String(36), ForeignKey("survey_templates.id", ondelete="RESTRICT"), nullable=False
+        String(36), ForeignKey("surveys.id", ondelete="RESTRICT"), nullable=False
     )
     started_at = Column(DateTime(timezone=True), default=func.now())
     closed_at = Column(DateTime(timezone=True), nullable=True)
