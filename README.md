@@ -126,6 +126,11 @@ Then visit http://localhost:8000/docs to see the interactive API documentation!
 The project includes a comprehensive Makefile for common development tasks:
 
 ```bash
+# See all available commands
+make help
+```
+
+```bash
 # Setup development environment
 make setup          # Install dependencies and pre-commit hooks
 
@@ -498,11 +503,64 @@ PORT=8000
 
 ### Running Tests
 
+The project includes comprehensive test suites for all API endpoints:
+
 ```bash
-# Run tests (when you add them)
+# Run all tests
 make test
-# or
-uv run pytest
+
+# Run API endpoint tests
+make test-api
+
+# Run health check tests
+make test-health
+
+# Run tests with coverage
+make test-coverage
+
+# Clean test artifacts
+make test-clean
+```
+
+#### Manual Test Execution
+
+```bash
+# Run all tests
+uv run pytest tests/ -v
+
+# Run specific test file
+uv run pytest tests/test_all_endpoints.py -v
+
+# Run tests with coverage
+uv run pytest tests/ --cov=app --cov-report=html
+
+# Run individual test functions
+uv run pytest tests/test_all_endpoints.py::test_all_endpoints -v
+```
+
+#### Test Files
+
+- **`tests/test_all_endpoints.py`** - Comprehensive test suite for all API endpoints
+  - Tests authentication, courses, surveys, sessions, and public endpoints
+  - Includes automatic test data cleanup
+  - Can be run individually or as a complete suite
+
+#### Test Features
+
+- **Automatic Authentication**: Tests handle JWT token management
+- **Data Cleanup**: Tests automatically clean up created data
+- **Comprehensive Coverage**: Tests all major API endpoints
+- **Error Handling**: Tests include proper error scenarios
+- **Real API Testing**: Tests against actual running API endpoints
+
+#### Running Individual Tests
+
+```bash
+# Test all endpoints in sequence
+uv run python tests/test_all_endpoints.py
+
+# Test specific endpoint categories
+uv run pytest tests/test_all_endpoints.py::test_individual_endpoints -v
 ```
 
 ## API Usage Examples

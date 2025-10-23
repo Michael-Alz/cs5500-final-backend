@@ -208,8 +208,85 @@ db-check:
 
 
 # -------------------------------------------------
+# HELP
+# -------------------------------------------------
+.PHONY: help
+help:
+	@echo "🚀 5500 Backend - Available Commands"
+	@echo ""
+	@echo "📦 Setup & Installation:"
+	@echo "  make setup          Install dependencies and pre-commit hooks"
+	@echo ""
+	@echo "🏃 Running the Application:"
+	@echo "  make run            Start FastAPI server with auto-reload"
+	@echo "  make dev            Start complete dev environment (database + backend)"
+	@echo ""
+	@echo "🧪 Testing:"
+	@echo "  make test            Run all tests"
+	@echo "  make test-api        Run API endpoint tests"
+	@echo "  make test-health     Run health check tests"
+	@echo "  make test-coverage   Run tests with coverage report"
+	@echo "  make test-clean      Clean test artifacts"
+	@echo ""
+	@echo "🔍 Code Quality:"
+	@echo "  make format          Format code with Black"
+	@echo "  make lint            Lint code with Ruff"
+	@echo "  make typecheck       Type checking with Mypy"
+	@echo "  make check           Run all code quality checks"
+	@echo ""
+	@echo "🐳 Docker:"
+	@echo "  make docker-up       Start database with Docker"
+	@echo "  make docker-pgadmin  Start database + pgAdmin"
+	@echo "  make docker-full     Start full stack (backend + database + pgAdmin)"
+	@echo "  make docker-down     Stop Docker services"
+	@echo "  make docker-rebuild  Complete rebuild with migrations and seeding"
+	@echo ""
+	@echo "🗄️ Database:"
+	@echo "  make db-migrate      Run database migrations"
+	@echo "  make db-check        Check database state"
+	@echo "  make db-shell        Connect to database shell"
+	@echo "  make db-backup       Create database backup"
+	@echo ""
+	@echo "🧹 Cleanup:"
+	@echo "  make clean           Remove temporary files and caches"
+	@echo "  make test-clean      Clean test artifacts"
+	@echo ""
+	@echo "📝 Git Helpers:"
+	@echo "  make commit          Auto-fix code and stage changes"
+	@echo "  make commit-auto     Auto-fix, stage, and commit with timestamp"
+
+# -------------------------------------------------
 # RUNNING TESTS
 # -------------------------------------------------
+.PHONY: test
 test:
-	@echo "🧪 Running tests..."
-	uv run pytest -v
+	@echo "🧪 Running all tests..."
+	$(UV) pytest tests/ -v
+
+.PHONY: test-api
+test-api:
+	@echo "🧪 Running API endpoint tests..."
+	$(UV) pytest tests/test_all_endpoints.py -v
+
+.PHONY: test-health
+test-health:
+	@echo "🧪 Running health check tests..."
+	$(UV) pytest tests/test_health.py -v
+
+.PHONY: test-coverage
+test-coverage:
+	@echo "🧪 Running tests with coverage..."
+	$(UV) pytest tests/ --cov=app --cov-report=html --cov-report=term
+
+.PHONY: test-watch
+test-watch:
+	@echo "🧪 Running tests in watch mode..."
+	$(UV) pytest-watch tests/ -v
+
+.PHONY: test-clean
+test-clean:
+	@echo "🧹 Cleaning test artifacts..."
+	rm -rf .pytest_cache/
+	rm -rf htmlcov/
+	rm -rf .coverage
+	@echo "✅ Test cleanup complete"
