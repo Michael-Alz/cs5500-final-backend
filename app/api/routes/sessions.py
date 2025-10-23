@@ -9,9 +9,11 @@ from app.core.config import settings
 from app.db import get_db
 from app.models.class_session import ClassSession
 from app.models.course import Course
+from app.models.submission import Submission
 from app.models.survey_template import SurveyTemplate
 from app.models.teacher import Teacher
 from app.schemas.session import SessionCloseOut, SessionCreate, SessionOut
+from app.schemas.submission import SubmissionItem, SubmissionsOut
 
 router = APIRouter()
 
@@ -95,3 +97,37 @@ def close_session(
     db.commit()
 
     return SessionCloseOut(status="CLOSED")
+
+
+@router.get("/{session_id}/submissions", response_model=SubmissionsOut)
+def get_session_submissions(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_teacher: Teacher = Depends(get_current_teacher),
+) -> SubmissionsOut:
+    """Get all submissions for a session."""
+    # Verify session ownership through course
+    session = (
+        db.query(ClassSession)
+        .join(Course)
+        .filter(and_(ClassSession.id == session_id, Course.teacher_id == current_teacher.id))
+        .first()
+    )
+
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SESSION_NOT_FOUND")
+
+    # Get submissions
+    submissions = db.query(Submission).filter(Submission.session_id == session_id).all()
+
+    items = [
+        SubmissionItem(
+            student_name=str(sub.student_name),
+            answers=dict(sub.answers_json) if sub.answers_json else {},
+            total_scores=dict(sub.total_scores) if sub.total_scores else {},
+            created_at=sub.created_at,  # type: ignore[arg-type]
+        )
+        for sub in submissions
+    ]
+
+    return SubmissionsOut(session_id=session_id, count=len(items), items=items)

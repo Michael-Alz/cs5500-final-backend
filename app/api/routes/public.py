@@ -7,7 +7,6 @@ from app.models.class_session import ClassSession
 from app.models.submission import Submission
 from app.models.survey_template import SurveyTemplate
 from app.schemas.public import PublicJoinOut, SubmissionIn, SubmissionOut
-from app.schemas.submission import SubmissionItem, SubmissionsOut
 
 router = APIRouter()
 
@@ -133,27 +132,3 @@ def submit_survey(
     db.refresh(submission)
 
     return SubmissionOut(ok=True, submission_id=str(submission.id))
-
-
-@router.get("/sessions/{session_id}/submissions", response_model=SubmissionsOut)
-def get_session_submissions(session_id: str, db: Session = Depends(get_db)) -> SubmissionsOut:
-    """Get all submissions for a session."""
-    # Get session
-    session = db.query(ClassSession).filter(ClassSession.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SESSION_NOT_FOUND")
-
-    # Get submissions
-    submissions = db.query(Submission).filter(Submission.session_id == session_id).all()
-
-    items = [
-        SubmissionItem(
-            student_name=str(sub.student_name),
-            answers=dict(sub.answers_json) if sub.answers_json else {},
-            total_scores=dict(sub.total_scores) if sub.total_scores else {},
-            created_at=sub.created_at,  # type: ignore[arg-type]
-        )
-        for sub in submissions
-    ]
-
-    return SubmissionsOut(session_id=session_id, count=len(items), items=items)
