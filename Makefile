@@ -35,7 +35,7 @@ dev:
 	@echo "⏳ Waiting for database to be ready..."
 	sleep 10
 	@echo "🔍 Checking database connection..."
-	@until docker exec 5500_database pg_isready -U qr_survey_user -d qr_survey_db; do echo "Waiting for database..."; sleep 2; done
+	@until docker exec 5500_database pg_isready -U class_connect_user -d class_connect_db; do echo "Waiting for database..."; sleep 2; done
 	@echo "🔄 Running migrations..."
 	$(UV) alembic upgrade head
 	@echo "🌱 Seeding database..."
@@ -131,7 +131,7 @@ docker-full:
 	@echo "⏳ Waiting for services to be ready..."
 	sleep 30
 	@echo "🔍 Checking database connection..."
-	@until docker exec 5500_database pg_isready -U qr_survey_user -d qr_survey_db; do echo "Waiting for database..."; sleep 2; done
+	@until docker exec 5500_database pg_isready -U class_connect_user -d class_connect_db; do echo "Waiting for database..."; sleep 2; done
 	@echo "🔄 Running database migrations..."
 	docker-compose exec backend uv run alembic upgrade head
 	@echo "🌱 Seeding database..."
@@ -170,7 +170,7 @@ docker-rebuild:
 	@echo "⏳ Waiting for database to be ready..."
 	sleep 20
 	@echo "🔍 Checking database connection..."
-	@until docker exec 5500_database pg_isready -U qr_survey_user -d qr_survey_db; do echo "Waiting for database..."; sleep 2; done
+	@until docker exec 5500_database pg_isready -U class_connect_user -d class_connect_db; do echo "Waiting for database..."; sleep 2; done
 	@echo "🔄 Running database migrations..."
 	$(UV) alembic upgrade head
 	@echo "🌱 Seeding database with sample data..."
@@ -184,12 +184,12 @@ docker-rebuild:
 .PHONY: db-shell
 db-shell:
 	@echo "🐚 Connecting to 5500 database shell..."
-	docker-compose exec database psql -U qr_survey_user -d qr_survey_db
+	docker-compose exec database psql -U class_connect_user -d class_connect_db
 
 .PHONY: db-backup
 db-backup:
 	@echo "💾 Creating 5500 database backup..."
-	docker-compose exec database pg_dump -U qr_survey_user qr_survey_db > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	docker-compose exec database pg_dump -U class_connect_user class_connect_db > backup_$(shell date +%Y%m%d_%H%M%S).sql
 	@echo "✅ Backup created"
 
 # -------------------------------------------------
@@ -200,10 +200,30 @@ db-migrate:
 	@echo "🔄 Running database migrations..."
 	$(UV) alembic upgrade head
 
+.PHONY: db-seed
+db-seed:
+	@echo "🌱 Seeding database with sample data..."
+	$(UV) python scripts/seed.py
+
 .PHONY: db-check
 db-check:
 	@echo "🔍 Checking database state..."
 	$(UV) python scripts/check_db_state.py
+
+.PHONY: db-clean
+db-clean:
+	@echo "🧹 Cleaning all data from database..."
+	$(UV) python scripts/clean_db.py
+
+.PHONY: db-clean-force
+db-clean-force:
+	@echo "🧹 Force cleaning all data from database..."
+	$(UV) python scripts/clean_db.py --force
+
+.PHONY: db-status
+db-status:
+	@echo "📊 Checking database status..."
+	$(UV) python scripts/clean_db.py --check
 
 
 
@@ -224,7 +244,6 @@ help:
 	@echo "🧪 Testing:"
 	@echo "  make test            Run all tests"
 	@echo "  make test-api        Run API endpoint tests"
-	@echo "  make test-health     Run health check tests"
 	@echo "  make test-coverage   Run tests with coverage report"
 	@echo "  make test-clean      Clean test artifacts"
 	@echo ""
@@ -243,7 +262,11 @@ help:
 	@echo ""
 	@echo "🗄️ Database:"
 	@echo "  make db-migrate      Run database migrations"
+	@echo "  make db-seed         Seed database with sample data"
 	@echo "  make db-check        Check database state"
+	@echo "  make db-status       Show database record counts"
+	@echo "  make db-clean        Clean all data (with confirmation)"
+	@echo "  make db-clean-force  Force clean all data (no confirmation)"
 	@echo "  make db-shell        Connect to database shell"
 	@echo "  make db-backup       Create database backup"
 	@echo ""
@@ -266,12 +289,7 @@ test:
 .PHONY: test-api
 test-api:
 	@echo "🧪 Running API endpoint tests..."
-	$(UV) pytest tests/test_all_endpoints.py -v
-
-.PHONY: test-health
-test-health:
-	@echo "🧪 Running health check tests..."
-	$(UV) pytest tests/test_health.py -v
+	$(UV) pytest tests/test_api.py -v
 
 .PHONY: test-coverage
 test-coverage:

@@ -7,7 +7,9 @@ class Settings(BaseSettings):
     port: int = 8000
 
     # Database
-    database_url: str = "sqlite+aiosqlite:///./dev.db"
+    database_url: str = (
+        "postgresql+psycopg://qr_survey_user:qr_survey_password@localhost:5432/qr_survey_db"
+    )
 
     # JWT
     jwt_secret: str = "change_me_in_production"

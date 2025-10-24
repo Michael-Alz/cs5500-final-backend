@@ -7,17 +7,17 @@ from sqlalchemy.sql import func
 from app.db import Base
 
 
-class Teacher(Base):
-    __tablename__ = "teachers"
+class Student(Base):
+    __tablename__ = "students"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    full_name = Column(String(255), nullable=True)  # Nullable for existing records
+    full_name = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), default=func.now())
 
     # Relationships
-    courses = relationship("Course", back_populates="teacher", cascade="all, delete-orphan")
+    submissions = relationship("Submission", back_populates="student", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
-        return f"<Teacher id={self.id} email={self.email}>"
+        return f"<Student id={self.id} email={self.email}>"

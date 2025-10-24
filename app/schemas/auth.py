@@ -4,11 +4,13 @@ from pydantic import BaseModel, EmailStr
 class AuthSignupIn(BaseModel):
     email: EmailStr
     password: str
+    full_name: str
 
 
 class AuthSignupOut(BaseModel):
     id: str
     email: str
+    full_name: str
 
 
 class AuthLoginIn(BaseModel):

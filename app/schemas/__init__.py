@@ -3,6 +3,7 @@ from .course import CourseCreate, CourseOut
 from .public import PublicJoinOut, SubmissionIn, SubmissionOut
 from .session import SessionCloseOut, SessionCreate, SessionOut
 from .submission import SubmissionItem, SubmissionsOut
+from .survey_template import SurveyTemplateIn, SurveyTemplateOut
 
 __all__ = [
     "AuthSignupIn",
@@ -19,4 +20,6 @@ __all__ = [
     "SubmissionOut",
     "SubmissionsOut",
     "SubmissionItem",
+    "SurveyTemplateIn",
+    "SurveyTemplateOut",
 ]

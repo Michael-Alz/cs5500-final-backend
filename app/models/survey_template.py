@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import JSON, Column, DateTime, Index, String
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -13,11 +13,14 @@ class SurveyTemplate(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = Column(String(255), nullable=False, unique=True, index=True)
     questions_json = Column(JSON, nullable=False)
-    creator_name = Column(String(255), nullable=False)
+    creator_name = Column(String(255), nullable=False)  # Keep for backward compatibility
+    creator_id = Column(String(36), ForeignKey("teachers.id", ondelete="CASCADE"), nullable=True)
+    creator_email = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     sessions = relationship("ClassSession", back_populates="survey_template")
+    creator = relationship("Teacher", foreign_keys=[creator_id])
 
     # Table constraints and indexes
     __table_args__ = (Index("ix_surveys_title", "title", unique=True),)

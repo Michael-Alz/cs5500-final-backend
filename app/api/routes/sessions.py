@@ -125,12 +125,30 @@ def get_session_submissions(
 
     items = []
     for sub in submissions:
+        # Determine display name and student info
+        student_name = None
+        student_id = None
+        student_full_name = None
+
+        if sub.student_id:
+            # Authenticated student submission
+            student_id = str(sub.student_id)
+            if sub.student:
+                student_full_name = str(sub.student.full_name)
+        else:
+            # Guest submission
+            student_name = str(sub.guest_name) if sub.guest_name else "Unknown"
+
         items.append(
             SubmissionItem(
-                student_name=str(sub.student_name),
+                student_name=student_name,
+                student_id=student_id,
+                student_full_name=student_full_name,
                 answers=dict(sub.answers_json) if sub.answers_json else {},
-                total_scores=dict(sub.total_scores) if sub.total_scores else {},
+                total_scores=dict(sub.total_scores) if sub.total_scores else None,
+                status=str(sub.status),
                 created_at=sub.created_at,  # type: ignore[arg-type]
+                updated_at=sub.updated_at,  # type: ignore[arg-type]
             )
         )
 

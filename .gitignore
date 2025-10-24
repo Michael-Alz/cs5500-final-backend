@@ -9,3 +9,4 @@ __pycache__/
 .vscode/*
 !.vscode/settings.json
 API_TESTING.md
+.cursorignore

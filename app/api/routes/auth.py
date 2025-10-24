@@ -19,13 +19,21 @@ def signup(user_data: AuthSignupIn, db: Session = Depends(get_db)) -> AuthSignup
 
     # Create new teacher
     hashed_password = hash_password(user_data.password)
-    teacher = Teacher(email=user_data.email, password_hash=hashed_password)
+    teacher = Teacher(
+        email=user_data.email,
+        password_hash=hashed_password,
+        full_name=user_data.full_name,
+    )
 
     db.add(teacher)
     db.commit()
     db.refresh(teacher)
 
-    return AuthSignupOut(id=str(teacher.id), email=str(teacher.email))
+    return AuthSignupOut(
+        id=str(teacher.id),
+        email=str(teacher.email),
+        full_name=str(teacher.full_name),
+    )
 
 
 @router.post("/login", response_model=AuthLoginOut)

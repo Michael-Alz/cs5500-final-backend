@@ -16,21 +16,29 @@ A FastAPI-based backend for QR code classroom surveys. Teachers create sessions 
 ## API Endpoints
 
 ### Authentication (Teachers)
-- `POST /api/auth/signup` - Teacher registration
+- `POST /api/auth/signup` - Teacher registration (email, password, full_name)
 - `POST /api/auth/login` - Teacher login
+
+### Student Authentication (NEW)
+- `POST /api/students/signup` - Student registration (email, password, full_name)
+- `POST /api/students/login` - Student login
+- `GET /api/students/me` - Get student profile
+- `GET /api/students/submissions` - Get student's submission history
 
 ### Teacher Routes (JWT Required)
 - `POST /api/courses` - Create course
 - `GET /api/courses` - List teacher's courses
-- `GET /api/surveys` - List available survey templates
 - `POST /api/surveys` - Create new survey template
+- `GET /api/surveys` - List available survey templates
+- `GET /api/surveys/{survey_id}` - Get specific survey template
 - `POST /api/sessions/{course_id}/sessions` - Create session with survey template
 - `POST /api/sessions/{session_id}/close` - Close session
 - `GET /api/sessions/{session_id}/submissions` - Get session submissions
 
-### Public Routes (No Auth)
+### Public Routes (No Auth Required)
 - `GET /api/public/join/{join_token}` - Get session info by token
-- `POST /api/public/join/{join_token}/submit` - Submit survey response
+- `POST /api/public/join/{join_token}/submit` - Submit survey response (guest or authenticated)
+- `GET /api/public/join/{join_token}/submission` - Check submission status
 
 ## Global Survey Library
 
@@ -40,6 +48,45 @@ The system uses a **global survey library** approach where survey templates are 
 - **Session Creation**: Teachers select from available templates when creating sessions
 - **Consistency**: All teachers have access to the same survey options
 - **Efficiency**: No need to recreate surveys for each session
+
+### Dynamic Scoring System
+
+The survey system supports **dynamic categories** with flexible scoring:
+
+- **No Hard-coded Categories**: Teachers can define any number of categories
+- **Flexible Scoring**: Each option can have scores for multiple categories
+- **Automatic Calculation**: The system dynamically calculates total scores per category
+- **Example Categories**: `{"Active": 5, "Visual": 0, "Auditory": 0, "Passive": 0}`
+
+#### How Dynamic Scoring Works:
+
+1. **Survey Creation**: Teachers define categories in the `scores` field of each option
+2. **Dynamic Detection**: The system automatically detects all categories from the survey template
+3. **Score Calculation**: When students submit responses, scores are calculated per category
+4. **Flexible Categories**: Supports any number of categories (e.g., Active, Visual, Auditory, Passive, etc.)
+
+#### Example Survey Structure:
+```json
+{
+  "title": "Learning Style Assessment",
+  "questions": [
+    {
+      "id": "q1",
+      "text": "I learn best when I can move around",
+      "options": [
+        {
+          "label": "Strongly Agree",
+          "scores": {"Active": 5, "Visual": 0, "Auditory": 0, "Passive": 0}
+        },
+        {
+          "label": "Agree", 
+          "scores": {"Active": 4, "Visual": 0, "Auditory": 0, "Passive": 0}
+        }
+      ]
+    }
+  ]
+}
+```
 
 ### Available Survey Templates
 
@@ -52,6 +99,143 @@ Each template includes:
 - Multiple choice questions with 3 options each
 - Scoring system that maps to learning categories
 - Consistent structure for easy analysis
+
+## Seed Data
+
+The application comes with comprehensive seed data that demonstrates all features including the new student authentication system. Run the seed script to populate your database with test data:
+
+```bash
+# Seed the database with sample data
+make db-seed
+
+# Or run directly
+uv run python scripts/seed.py
+```
+
+### Pre-seeded Test Accounts
+
+The seed script creates the following test accounts for immediate testing:
+
+#### **Teacher Account**
+- **Email:** `teacher1@example.com`
+- **Password:** `Passw0rd!`
+- **Full Name:** Dr. Smith
+
+#### **Student Accounts**
+- **Student 1:** `student1@example.com` / `Passw0rd!` (Alex Johnson)
+- **Student 2:** `student2@example.com` / `Passw0rd!` (Maya Chen)
+
+### Pre-seeded Survey Templates
+
+The seed data includes two comprehensive survey templates:
+
+#### **1. Learning Buddy: Style Check**
+- **Purpose:** Identifies learning styles and preferences
+- **Questions:** 9 questions covering:
+  - Physical movement preferences
+  - Visual learning preferences  
+  - Energy levels and emotional state
+  - Learning approach preferences
+- **Scoring Categories:** Active learner, Structured learner, Passive learner
+
+#### **2. Critter Quest: Learning Adventure**
+- **Purpose:** Fun, animal-themed learning style assessment
+- **Questions:** 10 questions with creative animal metaphors:
+  - Learning playground preferences
+  - Energy levels (panda, turtle, cat, rabbit, cheetah)
+  - Anxiety levels (calm ocean to storm)
+  - Social learning preferences
+  - Problem-solving approaches
+- **Scoring Categories:** Active learner, Structured learner, Passive learner, Buddy/Social learner
+
+### Pre-seeded Sessions
+
+The seed data creates two active sessions with join tokens:
+
+#### **Session 1: Learning Buddy Survey**
+- **Join Token:** `LEARN123`
+- **Survey:** Learning Buddy: Style Check
+- **Status:** Open (active)
+- **Sample Submissions:** 2 authenticated student submissions
+
+#### **Session 2: Critter Quest Survey**
+- **Join Token:** `QUEST456`
+- **Survey:** Critter Quest: Learning Adventure
+- **Status:** Open (active)
+- **Sample Submissions:** 1 guest submission
+
+### Sample Submissions
+
+The seed data includes realistic sample submissions demonstrating both authentication modes:
+
+#### **Authenticated Student Submissions**
+- **Alex Johnson** (student1@example.com): Completed Learning Buddy survey
+- **Maya Chen** (student2@example.com): Completed Learning Buddy survey
+- Both submissions include calculated scores and are linked to student accounts
+
+#### **Guest Submission**
+- **Guest Student**: Completed Critter Quest survey
+- Demonstrates guest mode functionality without authentication
+
+### Database Schema Features Demonstrated
+
+The seed data showcases all new features:
+
+#### **Student Authentication System**
+- Student accounts with full authentication
+- JWT token-based authentication
+- Student profile management
+- Submission history tracking
+
+#### **Dual Submission Modes**
+- **Authenticated Mode:** Submissions linked to student accounts
+- **Guest Mode:** Anonymous submissions with guest names
+- Proper constraint handling (either student_id OR guest_name, not both)
+
+#### **Survey Scoring System**
+- Dynamic category detection from survey templates
+- Automatic score calculation based on student responses
+- Multiple learning style categories supported
+
+#### **Session Management**
+- QR code generation with join tokens
+- Session status tracking (open/closed)
+- Teacher course and session management
+
+### Testing with Seed Data
+
+You can immediately test all endpoints using the pre-seeded data:
+
+```bash
+# Test teacher authentication
+curl -X POST "http://localhost:8000/api/auth/login" \
+     -H "Content-Type: application/json" \
+     -d '{"email":"teacher1@example.com","password":"Passw0rd!"}'
+
+# Test student authentication  
+curl -X POST "http://localhost:8000/api/students/login" \
+     -H "Content-Type: application/json" \
+     -d '{"email":"student1@example.com","password":"Passw0rd!"}'
+
+# Test public session access
+curl "http://localhost:8000/api/public/join/LEARN123"
+
+# Test guest submission
+curl -X POST "http://localhost:8000/api/public/join/QUEST456/submit" \
+     -H "Content-Type: application/json" \
+     -d '{"student_name":"Test Guest","answers":{"q1":"4 — Mostly me"},"is_guest":true}'
+```
+
+### Seed Data Reset
+
+To reset and re-seed the database:
+
+```bash
+# Or manually clear and re-seed
+uv run python scripts/seed.py
+```
+
+The seed data provides a complete demonstration environment for testing all API endpoints and features without needing to create test data manually.
 
 ## Project Structure
 
@@ -68,28 +252,29 @@ backend/
 │   ├── models/            # SQLAlchemy database models
 │   │   ├── __init__.py
 │   │   ├── teacher.py     # Teacher model
+│   │   ├── student.py     # Student model (NEW)
 │   │   ├── course.py      # Course model
 │   │   ├── class_session.py # Class session model
 │   │   ├── survey_template.py # Survey template model
-│   │   └── submission.py  # Submission model
+│   │   └── submission.py  # Submission model (updated for dual mode)
 │   ├── schemas/           # Pydantic schemas for API
 │   │   ├── __init__.py
-│   │   ├── auth.py        # Authentication schemas
+│   │   ├── auth.py        # Teacher authentication schemas
+│   │   ├── student_auth.py # Student authentication schemas (NEW)
 │   │   ├── course.py      # Course schemas
 │   │   ├── session.py     # Session schemas
-│   │   ├── survey_template.py # Survey template schemas
-│   │   ├── public.py      # Public API schemas
-│   │   └── submission.py  # Submission schemas
+│   │   ├── public.py      # Public API schemas (updated)
+│   │   └── submission.py  # Submission schemas (updated)
 │   └── api/               # API routes and dependencies
 │       ├── __init__.py
-│       ├── deps.py        # Dependency injection
+│       ├── deps.py        # Dependency injection (updated with student auth)
 │       └── routes/        # API route handlers
 │           ├── __init__.py
-│           ├── auth.py    # Authentication routes
+│           ├── auth.py    # Teacher authentication routes
+│           ├── student_auth.py # Student authentication routes (NEW)
 │           ├── courses.py # Course management routes
 │           ├── sessions.py # Session management routes
-│           ├── surveys.py # Survey template routes
-│           └── public.py  # Public API routes
+│           └── public.py  # Public API routes (updated for dual mode)
 ├── scripts/               # Utility scripts
 │   ├── init-db.sql       # Database initialization
 │   └── seed.py           # Database seeding
@@ -152,8 +337,6 @@ make commit-auto    # Auto-fix, stage, and commit with timestamp
 # Database commands
 make db-migrate     # Run database migrations
 make db-seed        # Seed database with sample data
-make db-reset       # Reset database (removes all data and reseeds)
-
 # Docker commands (optional)
 make docker-up      # Start PostgreSQL with Docker
 make docker-pgadmin  # Start PostgreSQL + pgAdmin with Docker
@@ -162,8 +345,6 @@ make docker-down    # Stop Docker services
 make docker-logs    # Show Docker logs
 make docker-reset   # Reset database (removes all data)
 make docker-rebuild # Complete rebuild: database + pgAdmin + migrate + seed
-make docker-build   # Build FastAPI Docker image
-make docker-run     # Run FastAPI in Docker
 make db-shell       # Connect to PostgreSQL shell
 make db-backup      # Create database backup
 
@@ -217,11 +398,42 @@ python --version
 # Copy environment file
 cp env.example .env
 
+# Edit .env file with your configuration
+# Default configuration uses:
+# - Database: class_connect_db
+# - User: class_connect_user  
+# - Password: class_connect_password
+# - JWT Secret: (generate a secure secret)
+
 # Run database migrations
 make db-migrate
 
 # Seed the database with sample data
 make db-seed
+```
+
+### 5. Environment Configuration
+
+The application uses a `.env` file for configuration. Key settings include:
+
+```bash
+# Application Settings
+APP_NAME=ClassConnect Backend
+APP_ENV=dev
+PORT=8000
+
+# Database Configuration (PostgreSQL)
+DATABASE_URL=postgresql+psycopg://class_connect_user:class_connect_password@localhost:5432/class_connect_db
+
+# JWT Configuration
+JWT_SECRET=your-secure-jwt-secret
+JWT_EXPIRE_HOURS=24
+
+# CORS Settings
+CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000"]
+
+# Public App URL for QR codes
+PUBLIC_APP_URL=http://localhost:5173
 ```
 
 ### 5. Install dependencies and run the application
@@ -246,7 +458,7 @@ uv run uvicorn app.main:app --reload --port 8000
 ## Running the Application
 
 ### Option 1: Full Docker Stack (Recommended)
-Run everything in Docker containers:
+Run everything in Docker containers with your custom configuration:
 
 ```bash
 # Start the complete stack (backend + database + pgAdmin)
@@ -255,6 +467,15 @@ make docker-full
 # Or use the development command
 make dev
 ```
+
+#### Docker Configuration
+
+The Docker setup uses your `.env` file configuration:
+
+- **Backend Service**: Uses your `.env` file + Docker overrides
+- **Database Service**: `class_connect_db` with `class_connect_user`
+- **Environment**: Production mode in Docker, dev mode locally
+- **Database URL**: Automatically switches from `localhost` to `database` hostname in Docker
 
 ### Option 2: Local Development
 Run the backend locally with Docker database:
@@ -274,7 +495,7 @@ Once running, you can access:
 - **API Base URL**: http://localhost:8000
 - **Interactive API Documentation**: http://localhost:8000/docs
 - **Alternative API Documentation**: http://localhost:8000/redoc
-- **PostgreSQL Database**: localhost:5432
+- **PostgreSQL Database**: localhost:5432 (class_connect_db)
 - **pgAdmin**: http://localhost:5050 (admin@qrsurvey.com / admin_password)
 
 ## Database Management with pgAdmin
@@ -306,9 +527,9 @@ make docker-pgadmin
 3. **Connection Tab**:
    - Host name/address: `5500_database` (or `localhost`)
    - Port: `5432`
-   - Maintenance database: `qr_survey_db`
-   - Username: `qr_survey_user`
-   - Password: `qr_survey_password`
+   - Maintenance database: `class_connect_db`
+   - Username: `class_connect_user`
+   - Password: `class_connect_password`
 4. **Click "Save"**
 
 ### Useful pgAdmin Features
@@ -512,9 +733,6 @@ make test
 # Run API endpoint tests
 make test-api
 
-# Run health check tests
-make test-health
-
 # Run tests with coverage
 make test-coverage
 
@@ -569,7 +787,7 @@ uv run pytest tests/test_all_endpoints.py::test_individual_endpoints -v
 ```bash
 curl -X POST "http://localhost:8000/api/auth/signup" \
      -H "Content-Type: application/json" \
-     -d '{"email":"teacher@example.com","password":"Passw0rd!"}'
+     -d '{"email":"teacher@example.com","password":"Passw0rd!","full_name":"Dr. Smith"}'
 ```
 
 ### Teacher Login
@@ -577,6 +795,32 @@ curl -X POST "http://localhost:8000/api/auth/signup" \
 TOKEN=$(curl -s -X POST "http://localhost:8000/api/auth/login" \
      -H "Content-Type: application/json" \
      -d '{"email":"teacher1@example.com","password":"Passw0rd!"}' | jq -r .access_token)
+```
+
+### Student Registration (NEW)
+```bash
+curl -X POST "http://localhost:8000/api/students/signup" \
+     -H "Content-Type: application/json" \
+     -d '{"email":"student@example.com","password":"Passw0rd!","full_name":"John Student"}'
+```
+
+### Student Login (NEW)
+```bash
+STUDENT_TOKEN=$(curl -s -X POST "http://localhost:8000/api/students/login" \
+     -H "Content-Type: application/json" \
+     -d '{"email":"student1@example.com","password":"Passw0rd!"}' | jq -r .access_token)
+```
+
+### Student Profile (NEW)
+```bash
+curl -X GET "http://localhost:8000/api/students/me" \
+     -H "Authorization: Bearer $STUDENT_TOKEN"
+```
+
+### Student Submission History (NEW)
+```bash
+curl -X GET "http://localhost:8000/api/students/submissions" \
+     -H "Authorization: Bearer $STUDENT_TOKEN"
 ```
 
 ### Create Course
@@ -587,9 +831,49 @@ curl -X POST "http://localhost:8000/api/courses" \
      -d '{"title":"CS101"}'
 ```
 
+### Create Survey Template
+```bash
+curl -X POST "http://localhost:8000/api/surveys" \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "title": "Learning Style Assessment",
+       "questions": [
+         {
+           "id": "q1",
+           "text": "I learn best when I can move around",
+           "options": [
+             {"label": "Strongly Agree", "scores": {"Active": 5, "Visual": 0, "Auditory": 0, "Passive": 0}},
+             {"label": "Agree", "scores": {"Active": 4, "Visual": 0, "Auditory": 0, "Passive": 0}},
+             {"label": "Neutral", "scores": {"Active": 3, "Visual": 0, "Auditory": 0, "Passive": 0}},
+             {"label": "Disagree", "scores": {"Active": 2, "Visual": 0, "Auditory": 0, "Passive": 0}},
+             {"label": "Strongly Disagree", "scores": {"Active": 1, "Visual": 0, "Auditory": 0, "Passive": 0}}
+           ]
+         },
+         {
+           "id": "q2",
+           "text": "I prefer visual aids like charts and diagrams",
+           "options": [
+             {"label": "Strongly Agree", "scores": {"Active": 0, "Visual": 5, "Auditory": 0, "Passive": 0}},
+             {"label": "Agree", "scores": {"Active": 0, "Visual": 4, "Auditory": 0, "Passive": 0}},
+             {"label": "Neutral", "scores": {"Active": 0, "Visual": 3, "Auditory": 0, "Passive": 0}},
+             {"label": "Disagree", "scores": {"Active": 0, "Visual": 2, "Auditory": 0, "Passive": 0}},
+             {"label": "Strongly Disagree", "scores": {"Active": 0, "Visual": 1, "Auditory": 0, "Passive": 0}}
+           ]
+         }
+       ]
+     }'
+```
+
 ### List Available Survey Templates
 ```bash
 curl -X GET "http://localhost:8000/api/surveys" \
+     -H "Authorization: Bearer $TOKEN"
+```
+
+### Get Specific Survey Template
+```bash
+curl -X GET "http://localhost:8000/api/surveys/{survey_id}" \
      -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -606,11 +890,29 @@ curl -X POST "http://localhost:8000/api/sessions/{course_id}/sessions" \
 curl "http://localhost:8000/api/public/join/Ab3kZp7Q"
 ```
 
-### Public: Submit Survey
+### Public: Submit Survey (Guest Mode)
 ```bash
-curl -X POST "http://localhost:8000/api/public/join/Ab3kZp7Q/submit" \
+curl -X POST "http://localhost:8000/api/public/join/LEARN123/submit" \
      -H "Content-Type: application/json" \
-     -d '{"student_name":"Michael","answers":{"name":"Michael","mood":"good"}}'
+     -d '{"student_name":"Guest Student","answers":{"q1":"4 — Mostly","q2":"5 — Yes, a lot"},"is_guest":true}'
+```
+
+### Public: Submit Survey (Authenticated Student Mode)
+```bash
+curl -X POST "http://localhost:8000/api/public/join/LEARN123/submit" \
+     -H "Authorization: Bearer $STUDENT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"answers":{"q1":"4 — Mostly","q2":"5 — Yes, a lot"},"is_guest":false}'
+```
+
+### Public: Check Submission Status
+```bash
+# For guest submissions
+curl "http://localhost:8000/api/public/join/LEARN123/submission?guest_name=Guest Student"
+
+# For authenticated student submissions
+curl "http://localhost:8000/api/public/join/LEARN123/submission" \
+     -H "Authorization: Bearer $STUDENT_TOKEN"
 ```
 
 ## Environment Variables

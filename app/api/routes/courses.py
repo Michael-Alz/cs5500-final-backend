@@ -1,6 +1,7 @@
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_teacher
@@ -19,13 +20,28 @@ def create_course(
     current_teacher: Teacher = Depends(get_current_teacher),
 ) -> CourseOut:
     """Create a new course."""
-    course = Course(title=course_data.title, teacher_id=current_teacher.id)
+    try:
+        course = Course(title=course_data.title, teacher_id=current_teacher.id)
 
-    db.add(course)
-    db.commit()
-    db.refresh(course)
+        db.add(course)
+        db.commit()
+        db.refresh(course)
 
-    return CourseOut(id=str(course.id), title=str(course.title))
+        return CourseOut(id=str(course.id), title=str(course.title))
+
+    except IntegrityError as e:
+        db.rollback()
+        # Check if it's a unique constraint violation
+        if "uq_course_title_per_teacher" in str(e.orig):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A course with this title already exists for your account",
+            )
+        else:
+            # Re-raise other integrity errors
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
+            )
 
 
 @router.get("/", response_model=List[CourseOut])

@@ -1,5 +1,3 @@
-from typing import List
-
 from pydantic import BaseModel
 
 
@@ -13,7 +11,3 @@ class CourseOut(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class CourseListOut(BaseModel):
-    courses: List[CourseOut]

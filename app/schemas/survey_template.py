@@ -1,31 +1,21 @@
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, List
 
 from pydantic import BaseModel
 
 
-class SurveyTemplateCreate(BaseModel):
+class SurveyTemplateIn(BaseModel):
     title: str
-    questions: List[
-        Dict[str, Any]
-    ]  # will be validated as the same shape used by existing templates
+    questions: List[dict[str, Any]]
 
 
 class SurveyTemplateOut(BaseModel):
     id: str
     title: str
-    questions: List[Dict[str, Any]]  # exactly the JSON stored in questions_json
+    questions: List[dict[str, Any]]
     creator_name: str
+    creator_id: str | None = None
+    creator_email: str | None = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
-
-class SurveyTemplateListItem(BaseModel):
-    id: str
-    title: str
-    question_count: int
-
-    class Config:
-        from_attributes = True
+    total: int

@@ -6,15 +6,13 @@ services:
   backend:
     build: .
     container_name: 5500_backend
+    env_file:
+      - .env
     environment:
-      - APP_NAME=5500 Backend
+      # Override database host for Docker (use 'database' instead of 'localhost')
+      - DATABASE_URL=postgresql+psycopg://class_connect_user:class_connect_password@database:5432/class_connect_db
+      # Override app environment for Docker
       - APP_ENV=production
-      - DATABASE_URL=postgresql://qr_survey_user:qr_survey_password@database:5432/qr_survey_db
-      - JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
-      - JWT_ALGORITHM=HS256
-      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
-      - CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
-      - PUBLIC_APP_URL=http://localhost:8000
     ports:
       - "8000:80"
     volumes:
@@ -37,9 +35,9 @@ services:
     image: postgres:15-alpine
     container_name: 5500_database
     environment:
-      POSTGRES_DB: qr_survey_db
-      POSTGRES_USER: qr_survey_user
-      POSTGRES_PASSWORD: qr_survey_password
+      POSTGRES_DB: class_connect_db
+      POSTGRES_USER: class_connect_user
+      POSTGRES_PASSWORD: class_connect_password
       POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "5432:5432"

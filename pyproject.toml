@@ -20,7 +20,6 @@ dependencies = [
     "aiosqlite>=0.19.0",
     "email-validator>=2.0.0",
     "gunicorn>=21.0.0",
-    "requests>=2.32.5",
 ]
 
 [dependency-groups]
@@ -67,4 +66,20 @@ disable_error_code = ["misc", "no-any-return"]
 # Exclude migration files from type checking
 exclude = [
     "alembic/versions/.*\\.py$"
+]
+
+[tool.pytest.ini_options]
+# Custom markers
+markers = [
+    "database: marks tests as requiring a database connection",
+]
+# Test discovery
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+# Warnings
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
 ]
