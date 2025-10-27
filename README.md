@@ -288,23 +288,27 @@ backend/
 
 ## Quick Start
 
-If you already have pyenv and uv installed, you can get started quickly:
+If you already have Docker installed, you can get started quickly:
 
 ```bash
 # Clone the repository (if not already done)
 git clone <repository-url>
-cd backend
+cd cs5500-final-backend
 
 # Set up Python environment
 pyenv local 3.11.9
 pyenv install 3.11.9  # if not already installed
 
-# Install dependencies and run
+# Install dependencies
 make setup  # Sets up development environment
-make run    # Starts the FastAPI server
+
+# Start the complete dev environment with Docker
+make dev    # Starts backend + database + pgAdmin in Docker
 ```
 
 Then visit http://localhost:8000/docs to see the interactive API documentation!
+
+**Note**: The project now uses Docker for the entire development environment. All services (backend, database, and pgAdmin) run in Docker containers with live reload support.
 
 ## Development Commands
 
@@ -320,8 +324,9 @@ make help
 make setup          # Install dependencies and pre-commit hooks
 
 # Running the application
-make run            # Start the FastAPI server with auto-reload
-make dev            # Start complete dev environment (database + backend)
+make dev            # Start complete dev environment (backend + database + pgAdmin in Docker)
+make docker-logs    # View logs from all services
+make docker-down    # Stop all Docker services
 
 # Code quality checks
 make format         # Format code with Black
@@ -334,19 +339,23 @@ make check          # Run all code quality checks
 make commit         # Auto-fix code and stage changes (ready for commit)
 make commit-auto    # Auto-fix, stage, and commit with timestamp
 
-# Database commands
+# Database commands (auto-detect Docker/local)
 make db-migrate     # Run database migrations
 make db-seed        # Seed database with sample data
-# Docker commands (optional)
-make docker-up      # Start PostgreSQL with Docker
-make docker-pgadmin  # Start PostgreSQL + pgAdmin with Docker
-make docker-full    # Start full stack (backend + database + pgAdmin)
-make docker-down    # Stop Docker services
-make docker-logs    # Show Docker logs
-make docker-reset   # Reset database (removes all data)
-make docker-rebuild # Complete rebuild: database + pgAdmin + migrate + seed
+make db-check       # Check database state
+make db-status      # Show database record counts
+make db-clean       # Clean all data (with confirmation)
+make db-clean-force # Force clean all data (no confirmation)
 make db-shell       # Connect to PostgreSQL shell
 make db-backup      # Create database backup
+
+# Docker commands (dev environment)
+make docker-pgadmin  # Start PostgreSQL + pgAdmin only
+make docker-full    # Start full stack (backend + database + pgAdmin)
+make docker-down    # Stop Docker services
+make docker-logs    # Show logs from backend and database
+make docker-reset   # Reset database (removes all data)
+make docker-rebuild # Complete rebuild with migrations and seeding
 
 # Cleanup
 make clean          # Remove temporary files and caches
@@ -395,38 +404,35 @@ python --version
 ### 4. Set up the database
 
 ```bash
-# Copy environment file
-cp env.example .env
+# Copy environment file for Docker development
+cp .env.example.docker .env.dev.docker
 
-# Edit .env file with your configuration
+# Edit .env.dev.docker file with your configuration if needed
 # Default configuration uses:
 # - Database: class_connect_db
 # - User: class_connect_user  
 # - Password: class_connect_password
-# - JWT Secret: (generate a secure secret)
+# - Container name: database (internal Docker network)
 
-# Run database migrations
-make db-migrate
-
-# Seed the database with sample data
-make db-seed
+# Note: Docker services use the service name 'database' instead of 'localhost'
 ```
 
 ### 5. Environment Configuration
 
-The application uses a `.env` file for configuration. Key settings include:
+The application uses environment files for configuration:
 
+#### For Docker Development (`.env.dev.docker`):
 ```bash
 # Application Settings
-APP_NAME=ClassConnect Backend
+APP_NAME=5500 Backend
 APP_ENV=dev
 PORT=8000
 
-# Database Configuration (PostgreSQL)
-DATABASE_URL=postgresql+psycopg://class_connect_user:class_connect_password@localhost:5432/class_connect_db
+# Database Configuration (use service name 'database' not 'localhost')
+DATABASE_URL=postgresql+psycopg://class_connect_user:class_connect_password@database:5432/class_connect_db
 
 # JWT Configuration
-JWT_SECRET=your-secure-jwt-secret
+JWT_SECRET=dev_change_me
 JWT_EXPIRE_HOURS=24
 
 # CORS Settings
@@ -436,57 +442,65 @@ CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000"]
 PUBLIC_APP_URL=http://localhost:5173
 ```
 
-### 5. Install dependencies and run the application
+**Important**: In Docker, use the service name `database` instead of `localhost` in DATABASE_URL.
+
+### 6. Start the development environment
 
 ```bash
-# Install dependencies and setup development environment
-make setup
+# Start the complete dev environment (recommended)
+make dev
 
-# Run the FastAPI application
-make run
-```
-
-Alternatively, you can run directly with uv:
-```bash
-# Install dependencies
-uv sync
-
-# Run the application
-uv run uvicorn app.main:app --reload --port 8000
+# This will:
+# - Start backend, database, and pgAdmin in Docker
+# - Run migrations and seed data
+# - Show backend logs with live reload
 ```
 
 ## Running the Application
 
-### Option 1: Full Docker Stack (Recommended)
-Run everything in Docker containers with your custom configuration:
+### Docker Development (Recommended)
+Run everything in Docker containers for development:
 
 ```bash
-# Start the complete stack (backend + database + pgAdmin)
-make docker-full
-
-# Or use the development command
+# Start the complete dev stack (backend + database + pgAdmin)
 make dev
+
+# This starts all services with:
+# - Backend with live reload (--reload flag)
+# - Database with volume persistence
+# - pgAdmin for database management
+# - Automatic migrations and seeding
 ```
 
-#### Docker Configuration
+#### Docker Development Configuration
 
-The Docker setup uses your `.env` file configuration:
+The Docker dev setup uses `docker-compose.dev.yml` and `.env.dev.docker`:
 
-- **Backend Service**: Uses your `.env` file + Docker overrides
-- **Database Service**: `class_connect_db` with `class_connect_user`
-- **Environment**: Production mode in Docker, dev mode locally
-- **Database URL**: Automatically switches from `localhost` to `database` hostname in Docker
+- **Backend Service**: Runs with live reload and volume mounts for hot reloading
+- **Database Service**: PostgreSQL 15 with persistent volumes
+- **Environment**: Development mode with debug logging
+- **Database URL**: Uses service name `database` (not `localhost`) for internal Docker network
+- **Volume Mounts**: 
+  - `./app` → `/app/app` (live code reload)
+  - `./alembic` → `/app/alembic` (live migration changes)
 
-### Option 2: Local Development
-Run the backend locally with Docker database:
+### Alternative: Local Backend with Docker Database
+
+If you prefer to run the backend locally (outside Docker) while using Docker for the database:
 
 ```bash
 # Start database and pgAdmin
 make docker-pgadmin
 
-# Run backend locally
-make dev
+# Set up local environment (creates .env from .env.example if needed)
+# Make sure DATABASE_URL points to localhost:5432 (not 'database')
+# Default connection: postgresql+psycopg://class_connect_user:class_connect_password@localhost:5432/class_connect_db
+
+# Run backend locally with auto-reload
+make run
 ```
+
+**Note**: The recommended approach is to use `make dev` which runs everything in Docker with live reload support. This alternative is useful if you need to debug locally or prefer your local Python environment.
 
 ### Access Points
 
@@ -496,7 +510,30 @@ Once running, you can access:
 - **Interactive API Documentation**: http://localhost:8000/docs
 - **Alternative API Documentation**: http://localhost:8000/redoc
 - **PostgreSQL Database**: localhost:5432 (class_connect_db)
-- **pgAdmin**: http://localhost:5050 (admin@qrsurvey.com / admin_password)
+- **pgAdmin**: http://localhost:5050 (admin@classconnect.com / admin_password)
+
+## Database Management
+
+### Auto-Detection of Docker vs Local Environment
+
+The database commands automatically detect whether you're running in Docker or locally:
+
+- **When Docker is running**: Commands run inside the Docker container (using `docker-compose exec`)
+- **When Docker is not running**: Commands run locally (requires database to be exposed to host)
+
+This means you can use the same commands regardless of your setup:
+
+```bash
+# These commands work in both Docker and local environments
+make db-migrate     # Runs migrations
+make db-seed        # Seeds sample data
+make db-check       # Checks database state
+make db-clean       # Cleans all data
+```
+
+### Docker Database Access
+
+Since the database is not exposed to the host (for security), database scripts run inside the Docker container when available. This ensures they can connect using the internal Docker network (`database:5432`).
 
 ## Database Management with pgAdmin
 
@@ -506,17 +543,17 @@ pgAdmin provides a web-based interface to manage your PostgreSQL database.
 
 ```bash
 # Start pgAdmin (starts both database and pgAdmin)
-make docker-up
-
-# Or start pgAdmin separately
 make docker-pgadmin
+
+# Or start full dev stack which includes pgAdmin
+make dev
 ```
 
 ### Accessing pgAdmin
 
 1. **Open pgAdmin**: Go to http://localhost:5050
 2. **Login**: 
-   - Email: `admin@qrsurvey.com`
+   - Email: `admin@classconnect.com`
    - Password: `admin_password`
 
 ### Connecting to the Database
@@ -525,7 +562,7 @@ make docker-pgadmin
 2. **General Tab**:
    - Name: `5500 Database`
 3. **Connection Tab**:
-   - Host name/address: `5500_database` (or `localhost`)
+   - Host name/address: `database` (use Docker service name, not localhost)
    - Port: `5432`
    - Maintenance database: `class_connect_db`
    - Username: `class_connect_user`
@@ -716,10 +753,11 @@ uv add --group dev package-name
 The application uses Pydantic Settings for configuration management. Environment variables can be set in a `.env` file:
 
 ```bash
-# .env file example
+# .env.dev.docker file example (for Docker development)
 APP_NAME=5500 Backend
 APP_ENV=dev
 PORT=8000
+DATABASE_URL=postgresql+psycopg://class_connect_user:class_connect_password@database:5432/class_connect_db
 ```
 
 ### Running Tests

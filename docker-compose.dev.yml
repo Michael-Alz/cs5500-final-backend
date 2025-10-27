@@ -1,23 +1,22 @@
-# 5500 Full Stack Services
-# This compose file contains all services: backend, database, and pgAdmin
-
+# docker-compose.dev.yml
+# Dev stack: backend (reload), database (internal), pgAdmin (web)
+name: 5500_backend_dev
 services:
-  # FastAPI Backend Application
   backend:
-    build: .
-    container_name: 5500_backend
+    build:
+      context: .
+      dockerfile: Dockerfile.dev   # use the dev image with --reload
+    container_name: 5500_backend_dev
     env_file:
-      - .env
+      - .env.dev.docker            # Docker-side dev env
     environment:
-      # Override database host for Docker (use 'database' instead of 'localhost')
-      - DATABASE_URL=postgresql+psycopg://class_connect_user:class_connect_password@database:5432/class_connect_db
-      # Override app environment for Docker
-      - APP_ENV=production
+      - APP_ENV=dev                # explicit dev mode
     ports:
-      - "8000:80"
+      - "${HOST_PORT:-8000}:${PORT:-8000}"  # host:container
     volumes:
-      - ./app:/app/app
-      - ./alembic:/app/alembic
+      - ./app:/app/app             # live reload source (dev only)
+      - ./alembic:/app/alembic     # live reload migrations
+      - ./scripts:/app/scripts     # live reload scripts
     networks:
       - 5500_network
     depends_on:
@@ -25,22 +24,23 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:${PORT:-8000}/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-  # PostgreSQL Database
+
   database:
     image: postgres:15-alpine
-    container_name: 5500_database
+    container_name: 5500_database_dev
     environment:
       POSTGRES_DB: class_connect_db
       POSTGRES_USER: class_connect_user
       POSTGRES_PASSWORD: class_connect_password
-      POSTGRES_HOST_AUTH_METHOD: trust
-    ports:
-      - "5432:5432"
+      # For dev only; remove in prod
+      # POSTGRES_HOST_AUTH_METHOD: trust
+    expose:
+      - "5432"                      # internal only; not mapped to host
     volumes:
       - 5500_postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -48,21 +48,20 @@ services:
       - 5500_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U qr_survey_user -d qr_survey_db"]
+      test: ["CMD-SHELL", "pg_isready -U class_connect_user -d class_connect_db"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
-  # pgAdmin for database management
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: 5500_pgadmin
+    container_name: 5500_pgadmin_dev
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@qrsurvey.com
+      PGADMIN_DEFAULT_EMAIL: admin@classconnect.com
       PGADMIN_DEFAULT_PASSWORD: admin_password
     ports:
-      - "5050:80"
+      - "5050:80"                   # http://localhost:5050
     volumes:
       - 5500_pgadmin_data:/var/lib/pgadmin
     networks:
@@ -78,4 +77,3 @@ volumes:
 networks:
   5500_network:
     driver: bridge
-
