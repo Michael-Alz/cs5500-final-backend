@@ -10,3 +10,4 @@ __pycache__/
 !.vscode/settings.json
 API_TESTING.md
 .cursorignore
+.env.dev.docker

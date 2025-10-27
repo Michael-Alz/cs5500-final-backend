@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
-New Seed Script with Updated Surveys
+Seed Script aligned with current schema
 
-This script seeds the database with the new survey templates:
-- Learning Buddy: Style Check
-- Critter Quest: Learning Adventure
+Tables: teachers, courses, students, surveys, sessions, submissions
+- Creates one teacher, one course
+- Creates two students
+- Inserts two surveys (questions_json)
+- Creates two sessions for the course (each bound to a survey)
+- Inserts three sample submissions (2 authenticated, 1 guest)
 """
 
 import json
@@ -23,7 +26,9 @@ sys.path.insert(0, str(project_root))
 from app.core.config import settings  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 
-# Database setup
+# -----------------------------
+# DB setup (use same URL as app)
+# -----------------------------
 SQLALCHEMY_DATABASE_URL = settings.database_url
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -32,68 +37,49 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def calculate_sample_scores(
     answers: dict[str, str], survey_template_questions: list[dict[str, Any]]
 ) -> dict[str, int]:
-    """Calculate total scores for each category based on sample student answers."""
+    """Aggregate scores per category based on selected answers."""
     all_categories = set()
-    for question in survey_template_questions:
-        for option in question.get("options", []):
-            scores = option.get("scores", {})
-            all_categories.update(scores.keys())
+    for q in survey_template_questions:
+        for opt in q.get("options", []):
+            all_categories.update(opt.get("scores", {}).keys())
+    totals = {c: 0 for c in all_categories}
 
-    total_scores = {category: 0 for category in all_categories}
-
-    for question in survey_template_questions:
-        question_id = question.get("id")
-        if question_id not in answers:
+    for q in survey_template_questions:
+        qid = q.get("id")
+        if qid not in answers:
             continue
-
-        selected_answer = answers[question_id]
-
-        for option in question.get("options", []):
-            if option.get("label") == selected_answer:
-                scores = option.get("scores", {})
-                for category, score in scores.items():
-                    if category in total_scores:
-                        total_scores[category] += score
+        picked = answers[qid]
+        for opt in q.get("options", []):
+            if opt.get("label") == picked:
+                for c, s in opt.get("scores", {}).items():
+                    if c in totals:
+                        totals[c] += s
                 break
-    return total_scores
+    return totals
 
 
 def seed_data() -> None:
-    """Seed the database with essential data."""
+    """Seed the database with essential data according to the latest schema."""
     db = SessionLocal()
     try:
         print("🌱 Starting database seeding...")
 
-        # Clear existing data in correct order (respecting foreign keys)
+        # -----------------------------
+        # 1) Clear existing data (FK-safe order)
+        # -----------------------------
         print("🗑️  Clearing existing data...")
-        try:
-            db.execute(text("DELETE FROM submissions"))
-        except Exception:
-            pass  # Table might not exist
-        try:
-            db.execute(text("DELETE FROM sessions"))
-        except Exception:
-            pass  # Table might not exist
-        try:
-            db.execute(text("DELETE FROM courses"))
-        except Exception:
-            pass  # Table might not exist
-        try:
-            db.execute(text("DELETE FROM surveys"))
-        except Exception:
-            pass  # Table might not exist
-        try:
-            db.execute(text("DELETE FROM students"))
-        except Exception:
-            pass  # Table might not exist
-        try:
-            db.execute(text("DELETE FROM teachers"))
-        except Exception:
-            pass  # Table might not exist
+        for table in ("submissions", "sessions", "courses", "surveys", "students", "teachers"):
+            try:
+                db.execute(text(f"DELETE FROM {table}"))
+            except Exception:
+                # Table might not exist on a fresh DB
+                pass
         db.commit()
         print("✅ Cleared existing data")
 
-        # Create teacher
+        # -----------------------------
+        # 2) Create a teacher
+        # -----------------------------
         teacher_id = str(uuid.uuid4())
         teacher_email = "teacher1@example.com"
         teacher_full_name = "Dr. Smith"
@@ -101,8 +87,10 @@ def seed_data() -> None:
 
         db.execute(
             text(
-                "INSERT INTO teachers (id, email, password_hash, full_name, created_at) VALUES "
-                "(:id, :email, :password_hash, :full_name, now())"
+                """
+                INSERT INTO teachers (id, email, password_hash, full_name, created_at)
+                VALUES (:id, :email, :password_hash, :full_name, now())
+                """
             ),
             {
                 "id": teacher_id,
@@ -113,32 +101,38 @@ def seed_data() -> None:
         )
         print(f"✅ Created teacher: {teacher_email} ({teacher_full_name})")
 
-        # Create course
+        # -----------------------------
+        # 3) Create a course for that teacher
+        # -----------------------------
         course_id = str(uuid.uuid4())
         course_title = "CS101 — Intro Class"
 
         db.execute(
             text(
-                "INSERT INTO courses (id, title, teacher_id, created_at) VALUES "
-                "(:id, :title, :teacher_id, now())"
+                """
+                INSERT INTO courses (id, title, teacher_id, created_at)
+                VALUES (:id, :title, :teacher_id, now())
+                """
             ),
             {"id": course_id, "title": course_title, "teacher_id": teacher_id},
         )
         print(f"✅ Created course: {course_title}")
 
-        # Create students for the new student authentication feature
+        # -----------------------------
+        # 4) Create students
+        # -----------------------------
         print("👨‍🎓 Creating students...")
 
-        # Student 1
         student_1_id = str(uuid.uuid4())
         student_1_email = "student1@example.com"
         student_1_full_name = "Alex Johnson"
         student_1_password = hash_password("Passw0rd!")
-
         db.execute(
             text(
-                "INSERT INTO students (id, email, password_hash, full_name, created_at) VALUES "
-                "(:id, :email, :password_hash, :full_name, now())"
+                """
+                INSERT INTO students (id, email, password_hash, full_name, created_at)
+                VALUES (:id, :email, :password_hash, :full_name, now())
+                """
             ),
             {
                 "id": student_1_id,
@@ -149,16 +143,16 @@ def seed_data() -> None:
         )
         print(f"✅ Created student: {student_1_email} ({student_1_full_name})")
 
-        # Student 2
         student_2_id = str(uuid.uuid4())
         student_2_email = "student2@example.com"
         student_2_full_name = "Maya Chen"
         student_2_password = hash_password("Passw0rd!")
-
         db.execute(
             text(
-                "INSERT INTO students (id, email, password_hash, full_name, created_at) VALUES "
-                "(:id, :email, :password_hash, :full_name, now())"
+                """
+                INSERT INTO students (id, email, password_hash, full_name, created_at)
+                VALUES (:id, :email, :password_hash, :full_name, now())
+                """
             ),
             {
                 "id": student_2_id,
@@ -169,11 +163,14 @@ def seed_data() -> None:
         )
         print(f"✅ Created student: {student_2_email} ({student_2_full_name})")
 
-        # Create surveys
-        print("📝 Creating new surveys...")
+        # -----------------------------
+        # 5) Create surveys (surveys.id/title/questions_json/creator_name/created_at)
+        # -----------------------------
+        print("📝 Creating surveys...")
 
         # Survey 1: Learning Buddy: Style Check
         survey_1_id = str(uuid.uuid4())
+        survey_1_title = "Learning Buddy: Style Check"
         survey_1_questions = [
             {
                 "id": "q1",
@@ -545,20 +542,23 @@ def seed_data() -> None:
 
         db.execute(
             text(
-                "INSERT INTO surveys (id, title, questions_json, creator_name, created_at) VALUES "
-                "(:id, :title, :questions_json, :creator_name, now())"
+                """
+                INSERT INTO surveys (id, title, questions_json, creator_name, created_at)
+                VALUES (:id, :title, :questions_json, :creator_name, now())
+                """
             ),
             {
                 "id": survey_1_id,
-                "title": "Learning Buddy: Style Check",
+                "title": survey_1_title,
                 "questions_json": json.dumps(survey_1_questions),
                 "creator_name": "system",
             },
         )
-        print("✅ Created survey: Learning Buddy: Style Check")
+        print(f"✅ Created survey: {survey_1_title}")
 
         # Survey 2: Critter Quest: Learning Adventure
         survey_2_id = str(uuid.uuid4())
+        survey_2_title = "Critter Quest: Learning Adventure"
         survey_2_questions = [
             {
                 "id": "q1",
@@ -1059,27 +1059,33 @@ def seed_data() -> None:
 
         db.execute(
             text(
-                "INSERT INTO surveys (id, title, questions_json, creator_name, created_at) VALUES "
-                "(:id, :title, :questions_json, :creator_name, now())"
+                """
+                INSERT INTO surveys (id, title, questions_json, creator_name, created_at)
+                VALUES (:id, :title, :questions_json, :creator_name, now())
+                """
             ),
             {
                 "id": survey_2_id,
-                "title": "Critter Quest: Learning Adventure",
+                "title": survey_2_title,
                 "questions_json": json.dumps(survey_2_questions),
                 "creator_name": "system",
             },
         )
-        print("✅ Created survey: Critter Quest: Learning Adventure")
+        print(f"✅ Created survey: {survey_2_title}")
 
-        # Create sessions
+        # -----------------------------
+        # 6) Create sessions  (sessions: id, course_id, survey_template_id, join_token, started_at)
+        # -----------------------------
         print("🗓️ Creating sample sessions...")
+
         session_1_id = str(uuid.uuid4())
-        join_token_1 = "LEARN123"
+        join_token_1 = "LEARN123"  # unique
         db.execute(
             text(
-                "INSERT INTO sessions (id, course_id, survey_template_id, join_token, started_at) "
-                "VALUES "
-                "(:id, :course_id, :survey_template_id, :join_token, now())"
+                """
+                INSERT INTO sessions (id, course_id, survey_template_id, join_token, started_at)
+                VALUES (:id, :course_id, :survey_template_id, :join_token, now())
+                """
             ),
             {
                 "id": session_1_id,
@@ -1094,9 +1100,10 @@ def seed_data() -> None:
         join_token_2 = "QUEST456"
         db.execute(
             text(
-                "INSERT INTO sessions (id, course_id, survey_template_id, join_token, started_at) "
-                "VALUES "
-                "(:id, :course_id, :survey_template_id, :join_token, now())"
+                """
+                INSERT INTO sessions (id, course_id, survey_template_id, join_token, started_at)
+                VALUES (:id, :course_id, :survey_template_id, :join_token, now())
+                """
             ),
             {
                 "id": session_2_id,
@@ -1107,10 +1114,12 @@ def seed_data() -> None:
         )
         print(f"✅ Created session for '{course_title}' with join token '{join_token_2}'")
 
-        # Create sample submissions
+        # -----------------------------
+        # 7) Create submissions (respect check/unique constraints)
+        # -----------------------------
         print("📥 Creating sample submissions...")
 
-        # Sample submission 1: Authenticated student submission
+        # Submission 1: Authenticated student (guest_* must be NULL)
         answers_1 = {
             "q1": "4 — Mostly",
             "q2": "5 — Yes, a lot",
@@ -1125,29 +1134,29 @@ def seed_data() -> None:
         total_scores_1 = calculate_sample_scores(answers_1, survey_1_questions)
         db.execute(
             text(
-                "INSERT INTO submissions (id, session_id, student_id, guest_name, answers_json, "
-                "total_scores, status, created_at) "
-                "VALUES "
-                "(:id, :session_id, :student_id, :guest_name, :answers_json, "
-                ":total_scores, :status, now())"
+                """
+                INSERT INTO submissions
+                (id, session_id, student_id, guest_name, guest_id, 
+                 answers_json, total_scores, status, created_at)
+                VALUES
+                (:id, :session_id, :student_id, NULL, NULL, 
+                 :answers_json, :total_scores, :status, now())
+                """
             ),
             {
                 "id": str(uuid.uuid4()),
                 "session_id": session_1_id,
-                "student_id": student_1_id,  # Authenticated student
-                "guest_name": None,  # Explicitly set to NULL for student submissions
+                "student_id": student_1_id,  # 学生提交：guest_* 必须为 NULL
                 "answers_json": json.dumps(answers_1),
                 "total_scores": json.dumps(total_scores_1),
                 "status": "completed",
             },
         )
-        print(
-            f"✅ Created authenticated student submission for '{student_1_full_name}' "
-            f"in session '{join_token_1}'"
-        )
+        print(f"✅ Created authenticated submission for {student_1_email}")
 
-        # Sample submission 2: Guest submission
+        # Submission 2: Guest submission (student_id NULL, guest_* non-null)
         guest_name = "Guest Student"
+        guest_uuid = str(uuid.uuid4())
         answers_2 = {
             "q1": "4 — Mostly me",
             "q2": "4 — Mostly helpful",
@@ -1163,27 +1172,28 @@ def seed_data() -> None:
         total_scores_2 = calculate_sample_scores(answers_2, survey_2_questions)
         db.execute(
             text(
-                "INSERT INTO submissions (id, session_id, student_id, guest_name, guest_id, "
-                "answers_json, "
-                "total_scores, status, created_at) "
-                "VALUES "
-                "(:id, :session_id, :student_id, :guest_name, :guest_id, :answers_json, "
-                ":total_scores, :status, now())"
+                """
+                INSERT INTO submissions
+                (id, session_id, student_id, guest_name, guest_id, 
+                 answers_json, total_scores, status, created_at)
+                VALUES
+                (:id, :session_id, NULL, :guest_name, :guest_id, 
+                 :answers_json, :total_scores, :status, now())
+                """
             ),
             {
                 "id": str(uuid.uuid4()),
                 "session_id": session_2_id,
-                "student_id": None,  # Explicitly set to NULL for guest submissions
-                "guest_name": guest_name,  # Guest submission
-                "guest_id": str(uuid.uuid4()),  # Generate guest_id for guest submissions
+                "guest_name": guest_name,
+                "guest_id": guest_uuid,  # 游客必须提供 guest_id
                 "answers_json": json.dumps(answers_2),
                 "total_scores": json.dumps(total_scores_2),
                 "status": "completed",
             },
         )
-        print(f"✅ Created guest submission for '{guest_name}' in session '{join_token_2}'")
+        print(f"✅ Created guest submission for '{guest_name}'")
 
-        # Sample submission 3: Another authenticated student submission
+        # Submission 3: Another authenticated student
         answers_3 = {
             "q1": "2 — A little",
             "q2": "3 — Not sure",
@@ -1198,27 +1208,29 @@ def seed_data() -> None:
         total_scores_3 = calculate_sample_scores(answers_3, survey_1_questions)
         db.execute(
             text(
-                "INSERT INTO submissions (id, session_id, student_id, guest_name, answers_json, "
-                "total_scores, status, created_at) "
-                "VALUES "
-                "(:id, :session_id, :student_id, :guest_name, :answers_json, "
-                ":total_scores, :status, now())"
+                """
+                INSERT INTO submissions
+                (id, session_id, student_id, guest_name, guest_id, 
+                 answers_json, total_scores, status, created_at)
+                VALUES
+                (:id, :session_id, :student_id, NULL, NULL, 
+                 :answers_json, :total_scores, :status, now())
+                """
             ),
             {
                 "id": str(uuid.uuid4()),
                 "session_id": session_1_id,
-                "student_id": student_2_id,  # Second authenticated student
-                "guest_name": None,  # Explicitly set to NULL for student submissions
+                "student_id": student_2_id,
                 "answers_json": json.dumps(answers_3),
                 "total_scores": json.dumps(total_scores_3),
                 "status": "completed",
             },
         )
-        print(
-            f"✅ Created authenticated student submission for '{student_2_full_name}' "
-            f"in session '{join_token_1}'"
-        )
+        print(f"✅ Created authenticated submission for {student_2_email}")
 
+        # -----------------------------
+        # 8) Commit & summary
+        # -----------------------------
         db.commit()
         print("\n🎉 Seeding complete!")
         print("\n📊 Summary:")
@@ -1230,7 +1242,7 @@ def seed_data() -> None:
         print(f"  - Course: {course_title}")
         print("  - Surveys: 2 new surveys created")
         print("  - Sessions: 2 sessions with join tokens")
-        print("  - Submissions: 3 sample submissions (2 authenticated students, 1 guest)")
+        print("  - Submissions: 3 (2 authenticated + 1 guest)")
         print("\n🔑 Test Credentials:")
         print(f"  - Teacher Login: {teacher_email} / Passw0rd!")
         print(f"  - Student 1 Login: {student_1_email} / Passw0rd!")
@@ -1238,8 +1250,8 @@ def seed_data() -> None:
         print(f"  - Join Tokens: {join_token_1}, {join_token_2}")
 
     except Exception as e:
-        print(f"❌ Error seeding data: {e}")
         db.rollback()
+        print(f"❌ Error seeding data: {e}")
         raise
     finally:
         db.close()

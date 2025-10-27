@@ -30,23 +30,34 @@ run:
 .PHONY: dev
 dev:
 	@echo "🚀 Starting development environment..."
-	@echo "🐳 Starting database and pgAdmin..."
-	docker-compose up -d
-	@echo "⏳ Waiting for database to be ready..."
-	sleep 10
+	@echo "🐳 Starting complete Docker stack with backend, database, and pgAdmin..."
+	docker-compose -f docker-compose.dev.yml up -d
+	@echo "⏳ Waiting for services to be ready..."
+	sleep 15
 	@echo "🔍 Checking database connection..."
-	@until docker exec 5500_database pg_isready -U class_connect_user -d class_connect_db; do echo "Waiting for database..."; sleep 2; done
+	@until docker exec 5500_database_dev pg_isready -U class_connect_user -d class_connect_db; do echo "Waiting for database..."; sleep 2; done
+
+	@echo "🧾 Ensuring initial Alembic revision exists (if no *.py in versions/)..."
+	@if [ -z "$$(ls -1 alembic/versions/*.py 2>/dev/null)" ]; then \
+		echo "No migration .py files found. Autogenerating initial migration..."; \
+		docker-compose -f docker-compose.dev.yml exec backend uv run alembic revision --autogenerate -m "initial schema"; \
+	else \
+		echo "Migration files detected:"; \
+		ls -1 alembic/versions/*.py 2>/dev/null || true; \
+	fi
+
 	@echo "🔄 Running migrations..."
-	$(UV) alembic upgrade head
+	make db-migrate
 	@echo "🌱 Seeding database..."
-	$(UV) python scripts/seed.py
-	@echo "🚀 Starting FastAPI backend..."
+	make db-seed
 	@echo "✅ Development environment ready!"
 	@echo "📊 Database: localhost:5432"
 	@echo "🌐 pgAdmin: http://localhost:5050"
 	@echo "🚀 Backend: http://localhost:8000"
-	@echo "📋 Press Ctrl+C to stop the backend"
-	$(UV) uvicorn $(APP):app --reload --port $(PORT)
+	@echo "📋 View logs with: make docker-logs"
+	@echo "📋 Stop services with: make docker-down"
+	docker-compose -f docker-compose.dev.yml logs -f backend
+
 
 # -------------------------------------------------
 # CODE QUALITY CHECKS
@@ -113,83 +124,84 @@ clean:
 .PHONY: docker-up
 docker-up:
 	@echo "🐳 Starting 5500 database with Docker..."
-	docker-compose up -d database
+	docker-compose -f docker-compose.dev.yml up -d database
 	@echo "✅ 5500 database is running on localhost:5432"
 
 .PHONY: docker-pgadmin
 docker-pgadmin:
 	@echo "🐳 Starting 5500 database and pgAdmin..."
-	docker-compose up -d
+	docker-compose -f docker-compose.dev.yml up -d
 	@echo "✅ 5500 database is running on localhost:5432"
 	@echo "✅ pgAdmin is running on localhost:5050"
-	@echo "📋 Login: admin@qrsurvey.com / admin_password"
+	@echo "📋 Login: admin@classconnect.com / admin_password"
 
 .PHONY: docker-full
 docker-full:
 	@echo "🚀 Starting full 5500 stack (backend + database + pgAdmin)..."
-	docker-compose up -d
+	docker-compose -f docker-compose.dev.yml up -d
 	@echo "⏳ Waiting for services to be ready..."
 	sleep 30
 	@echo "🔍 Checking database connection..."
-	@until docker exec 5500_database pg_isready -U class_connect_user -d class_connect_db; do echo "Waiting for database..."; sleep 2; done
+	@until docker exec 5500_database_dev pg_isready -U class_connect_user -d class_connect_db; do echo "Waiting for database..."; sleep 2; done
 	@echo "🔄 Running database migrations..."
-	docker-compose exec backend uv run alembic upgrade head
+	docker-compose -f docker-compose.dev.yml exec backend uv run alembic upgrade head
 	@echo "🌱 Seeding database..."
-	docker-compose exec backend uv run python scripts/seed.py
+	docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/seed.py
 	@echo "✅ Full 5500 stack is running!"
 	@echo "🚀 Backend: http://localhost:8000"
 	@echo "📊 Database: localhost:5432"
 	@echo "🌐 pgAdmin: http://localhost:5050"
-	@echo "📋 pgAdmin Login: admin@qrsurvey.com / admin_password"
+	@echo "📋 pgAdmin Login: admin@classconnect.com / admin_password"
 
 .PHONY: docker-down
 docker-down:
 	@echo "🛑 Stopping Docker services..."
-	docker-compose down
+	docker-compose -f docker-compose.dev.yml down
 	@echo "✅ Docker services stopped"
 
 .PHONY: docker-logs
 docker-logs:
 	@echo "📋 Showing Docker logs..."
-	docker-compose logs -f database
+	docker-compose -f docker-compose.dev.yml logs -f backend database
 
 .PHONY: docker-reset
 docker-reset:
 	@echo "🔄 Resetting 5500 database..."
-	docker-compose down -v
-	docker-compose up -d database
+	docker-compose -f docker-compose.dev.yml down -v
+	docker-compose -f docker-compose.dev.yml up -d database
 	@echo "✅ 5500 database reset complete"
 
 .PHONY: docker-rebuild
 docker-rebuild:
 	@echo "🔄 Completely rebuilding Docker environment..."
 	@echo "🛑 Stopping and removing containers and volumes..."
-	docker-compose down -v
-	@echo "🐳 Starting fresh database and pgAdmin..."
-	docker-compose up -d
+	docker-compose -f docker-compose.dev.yml down -v
+	@echo "🐳 Starting fresh development stack..."
+	docker-compose -f docker-compose.dev.yml up -d
 	@echo "⏳ Waiting for database to be ready..."
 	sleep 20
 	@echo "🔍 Checking database connection..."
-	@until docker exec 5500_database pg_isready -U class_connect_user -d class_connect_db; do echo "Waiting for database..."; sleep 2; done
+	@until docker exec 5500_database_dev pg_isready -U class_connect_user -d class_connect_db; do echo "Waiting for database..."; sleep 2; done
 	@echo "🔄 Running database migrations..."
-	$(UV) alembic upgrade head
+	docker-compose -f docker-compose.dev.yml exec backend uv run alembic upgrade head
 	@echo "🌱 Seeding database with sample data..."
-	$(UV) python scripts/seed.py
+	docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/seed.py
 	@echo "✅ Complete rebuild finished!"
 	@echo "📊 Database: localhost:5432"
 	@echo "🌐 pgAdmin: http://localhost:5050"
-	@echo "📋 Login: admin@qrsurvey.com / admin_password"
+	@echo "🚀 Backend: http://localhost:8000"
+	@echo "📋 Login: admin@classconnect.com / admin_password"
 
 
 .PHONY: db-shell
 db-shell:
 	@echo "🐚 Connecting to 5500 database shell..."
-	docker-compose exec database psql -U class_connect_user -d class_connect_db
+	docker-compose -f docker-compose.dev.yml exec database psql -U class_connect_user -d class_connect_db
 
 .PHONY: db-backup
 db-backup:
 	@echo "💾 Creating 5500 database backup..."
-	docker-compose exec database pg_dump -U class_connect_user class_connect_db > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	docker-compose -f docker-compose.dev.yml exec database pg_dump -U class_connect_user class_connect_db > backup_$(shell date +%Y%m%d_%H%M%S).sql
 	@echo "✅ Backup created"
 
 # -------------------------------------------------
@@ -198,32 +210,68 @@ db-backup:
 .PHONY: db-migrate
 db-migrate:
 	@echo "🔄 Running database migrations..."
-	$(UV) alembic upgrade head
+	@if docker ps | grep -q 5500_backend_dev; then \
+		echo "Running migrations in Docker container..."; \
+		docker-compose -f docker-compose.dev.yml exec backend uv run alembic upgrade head; \
+	else \
+		echo "Running migrations locally..."; \
+		$(UV) alembic upgrade head; \
+	fi
 
 .PHONY: db-seed
 db-seed:
 	@echo "🌱 Seeding database with sample data..."
-	$(UV) python scripts/seed.py
+	@if docker ps | grep -q 5500_backend_dev; then \
+		echo "Running seed script in Docker container..."; \
+		docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/seed.py; \
+	else \
+		echo "Running seed script locally..."; \
+		$(UV) python scripts/seed.py; \
+	fi
 
 .PHONY: db-check
 db-check:
 	@echo "🔍 Checking database state..."
-	$(UV) python scripts/check_db_state.py
+	@if docker ps | grep -q 5500_backend_dev; then \
+		echo "Running database check in Docker container..."; \
+		docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/check_db_state.py; \
+	else \
+		echo "Running database check locally..."; \
+		$(UV) python scripts/check_db_state.py; \
+	fi
 
 .PHONY: db-clean
 db-clean:
 	@echo "🧹 Cleaning all data from database..."
-	$(UV) python scripts/clean_db.py
+	@if docker ps | grep -q 5500_backend_dev; then \
+		echo "Running database cleanup in Docker container..."; \
+		docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/clean_db.py; \
+	else \
+		echo "Running database cleanup locally..."; \
+		$(UV) python scripts/clean_db.py; \
+	fi
 
 .PHONY: db-clean-force
 db-clean-force:
 	@echo "🧹 Force cleaning all data from database..."
-	$(UV) python scripts/clean_db.py --force
+	@if docker ps | grep -q 5500_backend_dev; then \
+		echo "Running force database cleanup in Docker container..."; \
+		docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/clean_db.py --force; \
+	else \
+		echo "Running force database cleanup locally..."; \
+		$(UV) python scripts/clean_db.py --force; \
+	fi
 
 .PHONY: db-status
 db-status:
 	@echo "📊 Checking database status..."
-	$(UV) python scripts/clean_db.py --check
+	@if docker ps | grep -q 5500_backend_dev; then \
+		echo "Running database status check in Docker container..."; \
+		docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/clean_db.py --check; \
+	else \
+		echo "Running database status check locally..."; \
+		$(UV) python scripts/clean_db.py --check; \
+	fi
 
 
 

@@ -1,0 +1,40 @@
+# Dockerfile.dev
+# Development image: Uvicorn with --reload and live code mounts
+
+FROM python:3.11-slim
+
+# Basic runtime settings
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+# Default dev port (can be overridden by env)
+ENV PORT=8000
+
+WORKDIR /app
+
+# System dependencies (curl for healthcheck, libpq for psycopg)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl \
+        postgresql-client \
+        build-essential \
+        libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv (modern Python project manager)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+# Copy lockfiles first to leverage Docker layer cache
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen
+
+# Copy the rest of the source (will be overlaid by bind mounts in dev)
+COPY . .
+
+EXPOSE 8000
+
+# Healthcheck (uses PORT env)
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD bash -lc "curl -fsS http://localhost:${PORT}/health || exit 1"
+
+# Start Uvicorn in reload mode (reads PORT from env)
+CMD ["bash","-lc","uv run uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --reload"]
