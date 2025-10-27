@@ -302,6 +302,9 @@ pyenv install 3.11.9  # if not already installed
 # Install dependencies
 make setup  # Sets up development environment
 
+# Set up environment configuration
+cp .env.example.docker .env.dev.docker
+
 # Start the complete dev environment with Docker
 make dev    # Starts backend + database + pgAdmin in Docker
 ```
@@ -309,6 +312,8 @@ make dev    # Starts backend + database + pgAdmin in Docker
 Then visit http://localhost:8000/docs to see the interactive API documentation!
 
 **Note**: The project now uses Docker for the entire development environment. All services (backend, database, and pgAdmin) run in Docker containers with live reload support.
+
+**Important**: You must copy `.env.example.docker` to `.env.dev.docker` before running `make dev`. The `.env.dev.docker` file is required by the Docker Compose configuration.
 
 ## Development Commands
 
@@ -401,21 +406,29 @@ pyenv local 3.11.9
 python --version
 ```
 
-### 4. Set up the database
+### 4. Set up environment configuration
+
+**Important**: Before running the Docker development environment, you need to create the environment file:
 
 ```bash
-# Copy environment file for Docker development
+# Copy the example environment file for Docker development
 cp .env.example.docker .env.dev.docker
 
-# Edit .env.dev.docker file with your configuration if needed
-# Default configuration uses:
-# - Database: class_connect_db
-# - User: class_connect_user  
-# - Password: class_connect_password
-# - Container name: database (internal Docker network)
-
-# Note: Docker services use the service name 'database' instead of 'localhost'
+# The .env.dev.docker file is already configured with defaults.
+# Edit it only if you need to customize:
+# - Database credentials
+# - Port mappings
+# - JWT secret (change in production!)
+# - CORS origins
 ```
+
+**Required for Docker Development**: The `.env.dev.docker` file is required by `docker-compose.dev.yml`. Without it, `make dev` will fail.
+
+Default configuration:
+- **Database**: `class_connect_db`
+- **User**: `class_connect_user`  
+- **Password**: `class_connect_password`
+- **Container name**: `database` (internal Docker network - use this instead of `localhost`)
 
 ### 5. Environment Configuration
 

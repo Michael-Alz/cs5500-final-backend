@@ -6,7 +6,7 @@ from app.core.config import settings
 
 # Create FastAPI app instance
 app = FastAPI(
-    title="5500 Backend",
+    title=settings.app_name,
     description="Backend for QR code-based classroom checkin system",
     version="0.1.0",
 )
