@@ -1,6 +1,6 @@
 # Makefile for FastAPI backend project
 # Common development shortcuts
-
+# git test
 # -------------------------------------------------
 # VARIABLES
 # -------------------------------------------------
