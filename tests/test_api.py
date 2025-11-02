@@ -61,7 +61,7 @@ class APIHelper:
         email = _unique_email("teacher")
         payload = {"email": email, "password": password, "full_name": full_name}
         try:
-            response = client.post("/api/auth/signup", json=payload)
+            response = client.post("/api/teachers/signup", json=payload)
         except OperationalError as exc:
             pytest.skip(f"Database unavailable: {exc}")
         assert response.status_code == 200, response.text
@@ -78,7 +78,9 @@ class APIHelper:
     def login_teacher(self, email: Optional[str] = None, password: str = "Passw0rd!") -> str:
         login_email = email or self._last_teacher_email
         assert login_email, "No teacher email available for login."
-        response = client.post("/api/auth/login", json={"email": login_email, "password": password})
+        response = client.post(
+            "/api/teachers/login", json={"email": login_email, "password": password}
+        )
         assert response.status_code == 200, response.text
         token = response.json()["access_token"]
         self.teacher_token = token
@@ -165,7 +167,7 @@ def test_health_and_auth_guards() -> None:
     assert response.status_code == 403
 
     # Validation error
-    response = client.post("/api/auth/signup", json={"email": "bad", "password": "short"})
+    response = client.post("/api/teachers/signup", json={"email": "bad", "password": "short"})
     assert response.status_code == 422
 
 
@@ -192,7 +194,7 @@ def test_teacher_and_student_authentication(monkeypatch) -> None:
 
     # Invalid login attempt
     bad_login = client.post(
-        "/api/auth/login", json={"email": teacher_email, "password": "WrongPass123"}
+        "/api/teachers/login", json={"email": teacher_email, "password": "WrongPass123"}
     )
     assert bad_login.status_code == 401
 

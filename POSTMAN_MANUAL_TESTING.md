@@ -61,7 +61,7 @@ CS5500 Backend
    - Expect `200` with JSON containing `"status": "ok"` and current environment.
 
 ### 1. Teacher Authentication
-3. **POST** `http://localhost:8000/api/auth/signup`  
+3. **POST** `http://localhost:8000/api/teachers/signup`  
    Body (`raw/json`):
    ```json
    {
@@ -76,7 +76,7 @@ CS5500 Backend
    ```
    - Optional negative: resubmit same email → expect `400` with `AUTH_EMAIL_EXISTS`.
 
-4. **POST** `http://localhost:8000/api/auth/login`  
+4. **POST** `http://localhost:8000/api/teachers/login`  
    Body:
    ```json
    {

@@ -4,13 +4,18 @@ from sqlalchemy.orm import Session
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db import get_db
 from app.models.teacher import Teacher
-from app.schemas.auth import AuthLoginIn, AuthLoginOut, AuthSignupIn, AuthSignupOut
+from app.schemas.teacher_auth import (
+    TeacherLoginIn,
+    TeacherLoginOut,
+    TeacherSignupIn,
+    TeacherSignupOut,
+)
 
 router = APIRouter()
 
 
-@router.post("/signup", response_model=AuthSignupOut)
-def signup(user_data: AuthSignupIn, db: Session = Depends(get_db)) -> AuthSignupOut:
+@router.post("/signup", response_model=TeacherSignupOut)
+def signup(user_data: TeacherSignupIn, db: Session = Depends(get_db)) -> TeacherSignupOut:
     """Register a new teacher."""
     # Check if email already exists
     existing_teacher = db.query(Teacher).filter(Teacher.email == user_data.email).first()
@@ -29,15 +34,15 @@ def signup(user_data: AuthSignupIn, db: Session = Depends(get_db)) -> AuthSignup
     db.commit()
     db.refresh(teacher)
 
-    return AuthSignupOut(
+    return TeacherSignupOut(
         id=str(teacher.id),
         email=str(teacher.email),
         full_name=str(teacher.full_name),
     )
 
 
-@router.post("/login", response_model=AuthLoginOut)
-def login(user_data: AuthLoginIn, db: Session = Depends(get_db)) -> AuthLoginOut:
+@router.post("/login", response_model=TeacherLoginOut)
+def login(user_data: TeacherLoginIn, db: Session = Depends(get_db)) -> TeacherLoginOut:
     """Authenticate a teacher and return JWT token."""
     # Find teacher by email
     teacher = db.query(Teacher).filter(Teacher.email == user_data.email).first()
@@ -50,4 +55,4 @@ def login(user_data: AuthLoginIn, db: Session = Depends(get_db)) -> AuthLoginOut
     # Create access token
     access_token = create_access_token(str(teacher.id))
 
-    return AuthLoginOut(access_token=access_token, token_type="bearer")
+    return TeacherLoginOut(access_token=access_token, token_type="bearer")

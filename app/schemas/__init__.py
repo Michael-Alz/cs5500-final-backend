@@ -1,6 +1,5 @@
 from .activity import ActivityCreate, ActivityOut, ActivityPatch
 from .activity_type import ActivityTypeCreate, ActivityTypeOut
-from .auth import AuthLoginIn, AuthLoginOut, AuthSignupIn, AuthSignupOut
 from .course import (
     CourseCreate,
     CourseOut,
@@ -31,6 +30,12 @@ from .session import (
 )
 from .submission import SubmissionItem, SubmissionsOut
 from .survey_template import SurveyTemplateIn, SurveyTemplateOut
+from .teacher_auth import (
+    TeacherLoginIn,
+    TeacherLoginOut,
+    TeacherSignupIn,
+    TeacherSignupOut,
+)
 
 __all__ = [
     "ActivityCreate",
@@ -38,10 +43,10 @@ __all__ = [
     "ActivityPatch",
     "ActivityTypeCreate",
     "ActivityTypeOut",
-    "AuthSignupIn",
-    "AuthSignupOut",
-    "AuthLoginIn",
-    "AuthLoginOut",
+    "TeacherSignupIn",
+    "TeacherSignupOut",
+    "TeacherLoginIn",
+    "TeacherLoginOut",
     "CourseCreate",
     "CourseOut",
     "CourseUpdate",
