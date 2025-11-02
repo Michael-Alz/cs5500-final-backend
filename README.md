@@ -254,6 +254,11 @@ Activity-type creation is restricted to admin teachers. Configure admins by sett
 `ADMIN_EMAILS` (ENV var) or editing `.env.dev.docker`. Tests use `monkeypatch` to temporarily
 set `settings.admin_emails`.
 
+-   Dev/test builds expose two maintenance endpoints for local setup:
+    -   `POST /api/admin/reset` clears every table but keeps the schema. Request body: `{"password": "<value>"}`.
+    -   `POST /api/admin/seed` runs `scripts/seed.py` to repopulate demo data.
+    -   Both routes require `MAINTENANCE_ADMIN_PASSWORD` to be set (see `.env.example.docker`) and are disabled when `APP_ENV` is not `dev` or `test`.
+
 ## Contributing Tips
 
 -   When adding new endpoints, include schemas in `app/schemas/` and add matching tests.

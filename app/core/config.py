@@ -36,6 +36,9 @@ class Settings(BaseSettings):
         validation_alias="CORS_ORIGINS",
     )
     admin_emails: List[str] = Field(default=[], validation_alias="ADMIN_EMAILS")
+    maintenance_admin_password: str | None = Field(
+        None, validation_alias="MAINTENANCE_ADMIN_PASSWORD"
+    )
 
     # Support both JSON arrays and comma-separated strings
     @field_validator("cors_origins", mode="before")

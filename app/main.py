@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import (
     activities,
     activity_types,
+    admin,
     courses,
     public,
     sessions,
@@ -35,6 +36,7 @@ app.add_middleware(
 # 🧩 Register routers
 # ---------------------------------------------------------
 app.include_router(teacher_auth.router, prefix="/api/teachers", tags=["Teacher Authentication"])
+app.include_router(admin.router, prefix="/api/admin", tags=["Admin Tools"])
 app.include_router(student_auth.router, prefix="/api/students", tags=["Student Authentication"])
 app.include_router(activity_types.router, prefix="/api/activity-types", tags=["Activity Types"])
 app.include_router(activities.router, prefix="/api/activities", tags=["Activities"])

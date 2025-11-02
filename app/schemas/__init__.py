@@ -1,5 +1,6 @@
 from .activity import ActivityCreate, ActivityOut, ActivityPatch
 from .activity_type import ActivityTypeCreate, ActivityTypeOut
+from .admin import AdminActionRequest
 from .course import (
     CourseCreate,
     CourseOut,
@@ -43,6 +44,7 @@ __all__ = [
     "ActivityPatch",
     "ActivityTypeCreate",
     "ActivityTypeOut",
+    "AdminActionRequest",
     "TeacherSignupIn",
     "TeacherSignupOut",
     "TeacherLoginIn",
