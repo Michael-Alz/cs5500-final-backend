@@ -70,7 +70,7 @@ typecheck:
 .PHONY: precommit
 precommit:
 	@echo "🔍 Running pre-commit on all files..."
-	$(UV) pre-commit run --all-files
+	$(UV) pre-commit run --all-files && git add .
 
 # -------------------------------------------------
 # FULL CODE VALIDATION
