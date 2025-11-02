@@ -132,6 +132,27 @@ def list_courses(
     return [_course_to_schema(course) for course in courses]
 
 
+@router.get("/{course_id}", response_model=CourseOut)
+def get_course(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_teacher: Teacher = Depends(get_current_teacher),
+) -> CourseOut:
+    """Fetch a single course for the authenticated teacher."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if course is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="COURSE_NOT_FOUND",
+        )
+    if course.teacher_id != current_teacher.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="COURSE_ACCESS_DENIED",
+        )
+    return _course_to_schema(course)
+
+
 @router.patch("/{course_id}", response_model=CourseOut)
 def update_course(
     course_id: str,

@@ -126,6 +126,7 @@ make dev
 | ------ | ------------------------------------------ | ------------------------------------------------------------ |
 | POST   | `/api/courses`                             | Create a course with baseline survey + mood labels.          |
 | GET    | `/api/courses`                             | List teacher's courses.                                      |
+| GET    | `/api/courses/{course_id}`                 | Fetch a single course owned by the authenticated teacher.    |
 | PATCH  | `/api/courses/{course_id}`                 | Update title / swap baseline survey (auto-flags rebaseline). |
 | GET    | `/api/courses/{course_id}/recommendations` | Fetch mood/style mappings + course metadata.                 |
 | PATCH  | `/api/courses/{course_id}/recommendations` | Upsert recommendation mappings (validates moods & styles).   |

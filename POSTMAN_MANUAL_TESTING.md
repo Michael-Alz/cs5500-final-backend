@@ -175,7 +175,10 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
 14. **GET** `http://localhost:8000/api/courses`  
     - Should list the course you just created.
 
-15. **PATCH** `http://localhost:8000/api/courses/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee`  
+15. **GET** `http://localhost:8000/api/courses/{{courseId}}`  
+    - Expect `200` with the course you created. If you use a different teacher token, expect `403`.
+
+16. **PATCH** `http://localhost:8000/api/courses/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee`  
     Body (optional update):
     ```json
     {
@@ -189,7 +192,7 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
 ### 5. Activity Types (Admin Teacher JWT)
 Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
 
-16. **POST** `http://localhost:8000/api/activity-types`  
+17. **POST** `http://localhost:8000/api/activity-types`  
     Body:
     ```json
     {
@@ -206,11 +209,11 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
     ```
     - Re-run with identical payload → expect `400` `ACTIVITY_TYPE_EXISTS`.
 
-17. **GET** `http://localhost:8000/api/activity-types`  
+18. **GET** `http://localhost:8000/api/activity-types`  
     - Verify the new type appears.
 
 ### 6. Activities (Teacher JWT)
-18. **POST** `http://localhost:8000/api/activities`  
+19. **POST** `http://localhost:8000/api/activities`  
     Body:
     ```json
     {
@@ -230,16 +233,16 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
     ```
     - Negative: omit `script_steps` → expect `400` `MISSING_REQUIRED_FIELDS`.
 
-19. **GET** `http://localhost:8000/api/activities` (no filters)  
+20. **GET** `http://localhost:8000/api/activities` (no filters)  
     - Expect array containing the new activity.
 
-20. **GET** `http://localhost:8000/api/activities?type=breathing-routine-demo`  
+21. **GET** `http://localhost:8000/api/activities?type=breathing-routine-demo`  
     - Confirms query filter works.
 
-21. **GET** `http://localhost:8000/api/activities/99999999-8888-7777-6666-555555555555`  
+22. **GET** `http://localhost:8000/api/activities/99999999-8888-7777-6666-555555555555`  
     - Expect `200` with full record.
 
-22. **PATCH** `http://localhost:8000/api/activities/99999999-8888-7777-6666-555555555555`  
+23. **PATCH** `http://localhost:8000/api/activities/99999999-8888-7777-6666-555555555555`  
     Body:
     ```json
     {
@@ -250,7 +253,7 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
     - Expect `200` with updated fields.
 
 ### 7. Course Recommendations (Teacher JWT)
-23. **PATCH** `http://localhost:8000/api/courses/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/recommendations`  
+24. **PATCH** `http://localhost:8000/api/courses/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/recommendations`  
     Body:
     ```json
     {
@@ -271,11 +274,11 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
     - Expect `200` with updated mappings.
     - Negative: supply `mood: "unknown"` → expect `400` `UNKNOWN_MOOD`.
 
-24. **GET** `http://localhost:8000/api/courses/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/recommendations`  
+25. **GET** `http://localhost:8000/api/courses/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/recommendations`  
     - Verify the mappings, mood labels, and learning-style categories.
 
 ### 8. Sessions (Teacher JWT)
-25. **POST** `http://localhost:8000/api/sessions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/sessions`  
+26. **POST** `http://localhost:8000/api/sessions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/sessions`  
     Body:
     ```json
     { "require_survey": false }
@@ -289,23 +292,23 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
     ```
     - Save QR URL if needed.
 
-26. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/submissions`  
+27. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/submissions`  
     - Expect `count: 0`.
 
-27. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/dashboard`  
+28. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/dashboard`  
     - Expect empty `participants` array initially.
 
 ### 9. Public Join & Submission (No Auth / Optional Student Auth)
-28. **GET** `http://localhost:8000/api/public/join/joinTokenSample123`  
+29. **GET** `http://localhost:8000/api/public/join/joinTokenSample123`  
     - Expect `200` with course + survey snapshot (because survey required).
 
-29. Negative validation: **POST** `.../submit` with missing mood  
+30. Negative validation: **POST** `.../submit` with missing mood  
     ```json
     { "is_guest": true }
     ```
     - Expect `422`.
 
-30. **POST** `http://localhost:8000/api/public/join/joinTokenSample123/submit` (Guest, survey required)  
+31. **POST** `http://localhost:8000/api/public/join/joinTokenSample123/submit` (Guest, survey required)  
     Body:
     ```json
     {
@@ -326,15 +329,15 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
     pm.environment.set("guestId", payload.guest_id);
     ```
 
-31. Resubmit as same guest to verify idempotent upsert: include `"guest_id": "guest-sample-12345"` and change `"mood": "energized"` → expect response shares same `submission_id`.
+32. Resubmit as same guest to verify idempotent upsert: include `"guest_id": "guest-sample-12345"` and change `"mood": "energized"` → expect response shares same `submission_id`.
 
-32. **GET** `http://localhost:8000/api/public/join/joinTokenSample123/submission?guest_id=guest-sample-12345`  
+33. **GET** `http://localhost:8000/api/public/join/joinTokenSample123/submission?guest_id=guest-sample-12345`  
     - Expect `{"submitted": true}`.
 
-33. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/submissions` (Teacher JWT)  
+34. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/submissions` (Teacher JWT)  
     - Expect `count >= 1`, confirm mood updated.
 
-34. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/dashboard`  
+35. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/dashboard`  
     - Expect participant entry with `recommended_activity`.
 
 35. **POST** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/close` (Teacher JWT)  

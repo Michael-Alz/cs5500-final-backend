@@ -221,6 +221,18 @@ def test_course_lifecycle_and_activity_management(monkeypatch) -> None:
     assert course["requires_rebaseline"] is True
     course_id = course["id"]
 
+    # Fetch course details (owner access)
+    get_response = client.get(f"/api/courses/{course_id}", headers=teacher_headers)
+    assert get_response.status_code == 200, get_response.text
+    assert get_response.json()["id"] == course_id
+
+    # Fetch course with a different teacher token -> forbidden
+    other_helper = APIHelper()
+    _, other_headers = other_helper.signup_teacher(monkeypatch=monkeypatch)
+    forbidden_response = client.get(f"/api/courses/{course_id}", headers=other_headers)
+    assert forbidden_response.status_code == 403
+    assert forbidden_response.json()["detail"] == "COURSE_ACCESS_DENIED"
+
     # Patch course (title + new baseline survey) -> flips requires_rebaseline
     patch_payload = {"title": "CS101 - Section A", "baseline_survey_id": alt_survey}
     response = client.patch(
