@@ -35,6 +35,7 @@ class Settings(BaseSettings):
         default=["http://localhost:5173", "http://localhost:3000"],
         validation_alias="CORS_ORIGINS",
     )
+    admin_emails: List[str] = Field(default=[], validation_alias="ADMIN_EMAILS")
 
     # Support both JSON arrays and comma-separated strings
     @field_validator("cors_origins", mode="before")
@@ -42,13 +43,27 @@ class Settings(BaseSettings):
     def parse_cors(cls, v):
         if isinstance(v, str):
             v = v.strip()
-            # If JSON array: starts with “[”
+            # If JSON array: starts with "["
             if v.startswith("["):
                 import json
 
                 return json.loads(v)
             # Otherwise treat as comma-separated list
             return [s.strip() for s in v.split(",") if s.strip()]
+        return v
+
+    @field_validator("admin_emails", mode="before")
+    @classmethod
+    def parse_admin_emails(cls, v):
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return []
+            if v.startswith("["):
+                import json
+
+                return json.loads(v)
+            return [email.strip() for email in v.split(",") if email.strip()]
         return v
 
     # ---------------------- #

@@ -18,6 +18,7 @@ class Teacher(Base):
 
     # Relationships
     courses = relationship("Course", back_populates="teacher", cascade="all, delete-orphan")
+    activities = relationship("Activity", back_populates="creator", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<Teacher id={self.id} email={self.email}>"

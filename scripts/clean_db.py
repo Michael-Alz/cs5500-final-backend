@@ -19,6 +19,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 from app.core.config import settings  # noqa: E402
+from app.models import Base  # noqa: E402
 
 # Database setup
 SQLALCHEMY_DATABASE_URL = settings.database_url
@@ -26,65 +27,56 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def clean_database() -> None:
-    """Remove all data from the database while preserving schema."""
+def _collect_table_names() -> list[str]:
+    """Return all ORM-managed table names excluding Alembic metadata."""
+    table_names = [
+        table.name for table in Base.metadata.sorted_tables if table.name != "alembic_version"
+    ]
+    if not table_names:
+        raise RuntimeError("No ORM tables discovered; has app.models been imported?")
+    return table_names
+
+
+def clean_database(force: bool = False) -> None:
+    """Remove all data from application tables while preserving schema."""
     db = SessionLocal()
     try:
         print("🧹 Starting database cleanup...")
-        print("⚠️  WARNING: This will delete ALL data from your database!")
+        print("⚠️  WARNING: This will delete ALL application data from your database!")
 
-        # Get confirmation from user
-        response = input("Are you sure you want to continue? (yes/no): ").lower().strip()
-        if response not in ["yes", "y"]:
-            print("❌ Cleanup cancelled.")
-            return
+        if not force:
+            response = input("Are you sure you want to continue? (yes/no): ").lower().strip()
+            if response not in {"yes", "y"}:
+                print("❌ Cleanup cancelled.")
+                return
 
-        print("\n🗑️  Removing data from all tables...")
+        print("\n🗑️  Removing data from all application tables...")
 
-        # Clear data in correct order (respecting foreign key constraints)
-        tables_to_clear = [
-            "submissions",  # Has foreign keys to sessions and students
-            "sessions",  # Has foreign keys to courses and surveys
-            "courses",  # Has foreign keys to teachers
-            "students",  # Independent table
-            "teachers",  # Independent table
-            "surveys",  # Independent table (survey templates)
-        ]
+        tables = _collect_table_names()
+        cleared_counts: dict[str, int] = {}
 
-        cleared_count = {}
-
-        for table in tables_to_clear:
+        for name in tables:
             try:
-                # Count records before deletion
-                count_result = db.execute(text(f"SELECT COUNT(*) FROM {table}"))
-                count_before = count_result.scalar() or 0
+                result = db.execute(text(f'SELECT COUNT(*) FROM "{name}"'))
+                cleared_counts[name] = result.scalar() or 0
+            except Exception:
+                cleared_counts[name] = 0
 
-                # Delete all records
-                db.execute(text(f"DELETE FROM {table}"))
-
-                cleared_count[table] = count_before
-                print(f"✅ Cleared {count_before} records from {table}")
-
-            except Exception as e:
-                print(f"⚠️  Warning: Could not clear {table}: {e}")
-                cleared_count[table] = 0
-
-        # Commit all changes
+        truncate_sql = "TRUNCATE TABLE {} RESTART IDENTITY CASCADE".format(
+            ", ".join(f'"{name}"' for name in tables)
+        )
+        db.execute(text(truncate_sql))
         db.commit()
 
         print("\n🎉 Database cleanup completed!")
         print("\n📊 Summary of cleared data:")
         total_cleared = 0
-        for table, count in cleared_count.items():
-            if count > 0:
-                print(f"  - {table}: {count} records")
-                total_cleared += count
+        for table_name in tables:
+            count = cleared_counts.get(table_name, 0)
+            print(f"  - {table_name}: {count} records removed")
+            total_cleared += count
 
-        if total_cleared == 0:
-            print("  - No data was found to clear (database was already empty)")
-        else:
-            print(f"\nTotal records cleared: {total_cleared}")
-
+        print(f"\nTotal records cleared: {total_cleared}")
         print("\n💡 Next steps:")
         print("  - Run 'uv run python scripts/seed.py' to populate with sample data")
         print("  - Or start fresh with your own data")
@@ -103,19 +95,19 @@ def check_database_state() -> None:
     try:
         print("🔍 Checking database state...")
 
-        tables_to_check = ["teachers", "students", "courses", "surveys", "sessions", "submissions"]
+        tables_to_check = _collect_table_names()
 
         total_records = 0
         for table in tables_to_check:
             try:
-                result = db.execute(text(f"SELECT COUNT(*) FROM {table}"))
+                result = db.execute(text(f'SELECT COUNT(*) FROM "{table}"'))
                 count = result.scalar() or 0
                 print(f"  - {table}: {count} records")
                 total_records += count
             except Exception as e:
                 print(f"  - {table}: Error checking ({e})")
 
-        print(f"\nTotal records in database: {total_records}")
+        print(f"\nTotal records across tracked tables: {total_records}")
 
         if total_records == 0:
             print("✅ Database is empty")
@@ -148,17 +140,9 @@ def main() -> None:
 
     if args.force:
         print("🧹 Force cleaning database (skipping confirmation)...")
-        # Override the confirmation in clean_database
-        import builtins
-
-        original_input = builtins.input
-        builtins.input = lambda _: "yes"  # type: ignore[assignment]
-        try:
-            clean_database()
-        finally:
-            builtins.input = original_input
+        clean_database(force=True)
     else:
-        clean_database()
+        clean_database(force=False)
 
 
 if __name__ == "__main__":

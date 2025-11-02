@@ -30,26 +30,16 @@ run:
 .PHONY: dev
 dev:
 	@echo "🚀 Starting development environment..."
-	@echo "🐳 Starting complete Docker stack with backend, database, and pgAdmin..."
-	docker-compose -f docker-compose.dev.yml up -d
-	@echo "⏳ Waiting for services to be ready..."
-	sleep 15
-	@echo "🔍 Checking database connection..."
-	@until docker exec 5500_database_dev pg_isready -U class_connect_user -d class_connect_db; do echo "Waiting for database..."; sleep 2; done
-
-	@echo "🧾 Ensuring initial Alembic revision exists (if no *.py in versions/)..."
-	@if [ -z "$$(ls -1 alembic/versions/*.py 2>/dev/null)" ]; then \
-		echo "No migration .py files found. Autogenerating initial migration..."; \
-		docker-compose -f docker-compose.dev.yml exec backend uv run alembic revision --autogenerate -m "initial schema"; \
-	else \
-		echo "Migration files detected:"; \
-		ls -1 alembic/versions/*.py 2>/dev/null || true; \
-	fi
-
-	@echo "🔄 Running migrations..."
-	make db-migrate
-	@echo "🌱 Seeding database..."
-	make db-seed
+	@echo "🐳 Starting shared services (database + pgAdmin)..."
+	docker-compose -f docker-compose.dev.yml up -d database pgadmin
+	@echo "⏳ Waiting for database to become healthy..."
+	@until docker exec 5500_database_dev pg_isready -U class_connect_user -d class_connect_db > /dev/null 2>&1; do echo "Waiting for database..."; sleep 2; done
+	@echo "🔄 Applying database migrations (head)..."
+	docker-compose -f docker-compose.dev.yml run --rm backend uv run alembic upgrade head
+	@echo "🌱 Seeding database with starter data..."
+	docker-compose -f docker-compose.dev.yml run --rm backend uv run python scripts/seed.py
+	@echo "🚀 Bringing up FastAPI backend (live reload enabled)..."
+	docker-compose -f docker-compose.dev.yml up -d backend
 	@echo "✅ Development environment ready!"
 	@echo "📊 Database: localhost:5432"
 	@echo "🌐 pgAdmin: http://localhost:5050"
@@ -213,6 +203,9 @@ db-migrate:
 	@if docker ps | grep -q 5500_backend_dev; then \
 		echo "Running migrations in Docker container..."; \
 		docker-compose -f docker-compose.dev.yml exec backend uv run alembic upgrade head; \
+	elif docker ps | grep -q 5500_database_dev; then \
+		echo "Running migrations via ephemeral backend container..."; \
+		docker-compose -f docker-compose.dev.yml run --rm backend uv run alembic upgrade head; \
 	else \
 		echo "Running migrations locally..."; \
 		$(UV) alembic upgrade head; \
@@ -224,6 +217,9 @@ db-seed:
 	@if docker ps | grep -q 5500_backend_dev; then \
 		echo "Running seed script in Docker container..."; \
 		docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/seed.py; \
+	elif docker ps | grep -q 5500_database_dev; then \
+		echo "Running seed script via ephemeral backend container..."; \
+		docker-compose -f docker-compose.dev.yml run --rm backend uv run python scripts/seed.py; \
 	else \
 		echo "Running seed script locally..."; \
 		$(UV) python scripts/seed.py; \
@@ -235,6 +231,9 @@ db-check:
 	@if docker ps | grep -q 5500_backend_dev; then \
 		echo "Running database check in Docker container..."; \
 		docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/check_db_state.py; \
+	elif docker ps | grep -q 5500_database_dev; then \
+		echo "Running database check via ephemeral backend container..."; \
+		docker-compose -f docker-compose.dev.yml run --rm backend uv run python scripts/check_db_state.py; \
 	else \
 		echo "Running database check locally..."; \
 		$(UV) python scripts/check_db_state.py; \
@@ -246,6 +245,9 @@ db-clean:
 	@if docker ps | grep -q 5500_backend_dev; then \
 		echo "Running database cleanup in Docker container..."; \
 		docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/clean_db.py; \
+	elif docker ps | grep -q 5500_database_dev; then \
+		echo "Running database cleanup via ephemeral backend container..."; \
+		docker-compose -f docker-compose.dev.yml run --rm backend uv run python scripts/clean_db.py; \
 	else \
 		echo "Running database cleanup locally..."; \
 		$(UV) python scripts/clean_db.py; \
@@ -257,6 +259,9 @@ db-clean-force:
 	@if docker ps | grep -q 5500_backend_dev; then \
 		echo "Running force database cleanup in Docker container..."; \
 		docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/clean_db.py --force; \
+	elif docker ps | grep -q 5500_database_dev; then \
+		echo "Running force database cleanup via ephemeral backend container..."; \
+		docker-compose -f docker-compose.dev.yml run --rm backend uv run python scripts/clean_db.py --force; \
 	else \
 		echo "Running force database cleanup locally..."; \
 		$(UV) python scripts/clean_db.py --force; \
@@ -268,6 +273,9 @@ db-status:
 	@if docker ps | grep -q 5500_backend_dev; then \
 		echo "Running database status check in Docker container..."; \
 		docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/clean_db.py --check; \
+	elif docker ps | grep -q 5500_database_dev; then \
+		echo "Running database status check via ephemeral backend container..."; \
+		docker-compose -f docker-compose.dev.yml run --rm backend uv run python scripts/clean_db.py --check; \
 	else \
 		echo "Running database status check locally..."; \
 		$(UV) python scripts/clean_db.py --check; \
@@ -331,18 +339,33 @@ help:
 # -------------------------------------------------
 .PHONY: test
 test:
-	@echo "🧪 Running all tests..."
-	$(UV) pytest tests/ -v
+	@echo "🧪 Running all tests (inside backend container)..."
+	@if ! docker compose -f docker-compose.dev.yml ps --services --filter status=running | grep -q '^backend$$'; then \
+		echo "   Backend container not running – starting backend (and database)..."; \
+		docker compose -f docker-compose.dev.yml up -d backend; \
+		sleep 5; \
+	fi
+	docker compose -f docker-compose.dev.yml exec backend uv run pytest tests/ -v
 
 .PHONY: test-api
 test-api:
-	@echo "🧪 Running API endpoint tests..."
-	$(UV) pytest tests/test_api.py -v
+	@echo "🧪 Running API endpoint tests (inside backend container)..."
+	@if ! docker compose -f docker-compose.dev.yml ps --services --filter status=running | grep -q '^backend$$'; then \
+		echo "   Backend container not running – starting backend (and database)..."; \
+		docker compose -f docker-compose.dev.yml up -d backend; \
+		sleep 5; \
+	fi
+	docker compose -f docker-compose.dev.yml exec backend uv run pytest tests/test_api.py -v
 
 .PHONY: test-coverage
 test-coverage:
-	@echo "🧪 Running tests with coverage..."
-	$(UV) pytest tests/ --cov=app --cov-report=html --cov-report=term
+	@echo "🧪 Running tests with coverage (inside backend container)..."
+	@if ! docker compose -f docker-compose.dev.yml ps --services --filter status=running | grep -q '^backend$$'; then \
+		echo "   Backend container not running – starting backend (and database)..."; \
+		docker compose -f docker-compose.dev.yml up -d backend; \
+		sleep 5; \
+	fi
+	docker compose -f docker-compose.dev.yml exec backend uv run pytest tests/ --cov=app --cov-report=html --cov-report=term
 
 .PHONY: test-watch
 test-watch:
