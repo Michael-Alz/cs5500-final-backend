@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -19,7 +21,9 @@ from app.models import (  # noqa: E402
 )
 from app.services.recommendations import (  # noqa: E402
     build_recommended_activity_payload,
+    ensure_defaults_for_course,
     get_recommended_activity,
+    pick_system_default_activity,
 )
 from app.services.submissions import (  # noqa: E402
     get_current_profile,
@@ -183,6 +187,55 @@ def _seed_recommendation_data(session: Session) -> tuple[Course, dict[str, Activ
     return course, activities
 
 
+def _setup_course_with_activities(session: Session) -> tuple[Course, dict[str, Activity]]:
+    teacher = Teacher(
+        id=str(uuid.uuid4()),
+        email="helper@example.com",
+        password_hash="hash",
+        full_name="Helper",
+    )
+    course = Course(
+        id=str(uuid.uuid4()),
+        title="Helper Course",
+        teacher_id=teacher.id,
+        learning_style_categories=["Visual", "Auditory"],
+        mood_labels=["happy", "calm"],
+    )
+    activity_type = ActivityType(
+        type_name=f"type-{uuid.uuid4().hex}",
+        description="Helper type",
+        required_fields=[],
+        optional_fields=[],
+        example_content_json={},
+    )
+    session.add_all([teacher, course, activity_type])
+    session.flush()
+
+    activities: dict[str, Activity] = {}
+
+    def _make_activity(key: str, tags: list[str]) -> None:
+        activity = Activity(
+            id=str(uuid.uuid4()),
+            name=f"{key.title()} Activity",
+            summary=f"{key} summary",
+            type=activity_type.type_name,
+            tags=tags,
+            content_json={"steps": ["one"]},
+            creator_id=teacher.id,
+            creator_name=teacher.full_name or teacher.email,
+            creator_email=teacher.email,
+        )
+        session.add(activity)
+        activities[key] = activity
+
+    _make_activity("system", ["__system_default__", "core"])
+    _make_activity("precise", ["class"])
+    _make_activity("manual", ["manual"])
+
+    session.commit()
+    return course, activities
+
+
 def test_get_recommended_activity_priority(db_session: Session) -> None:
     course, activities = _seed_recommendation_data(db_session)
 
@@ -216,8 +269,98 @@ def test_get_recommended_activity_priority(db_session: Session) -> None:
     match, activity = get_recommended_activity(
         db_session, course.id, mood="any", learning_style=None
     )
-    assert match == "none"
-    assert activity is None
+    default_activity = pick_system_default_activity(db_session)
+    if default_activity:
+        assert match == "system-default"
+        assert activity is not None
+        assert activity.id == default_activity.id
+    else:
+        assert match == "none"
+        assert activity is None
+
+
+def test_ensure_defaults_creates_global_default(db_session: Session) -> None:
+    course, activities = _setup_course_with_activities(db_session)
+    ensure_defaults_for_course(db_session, course.id, [])
+    db_session.commit()
+
+    global_default = (
+        db_session.query(CourseRecommendation)
+        .filter_by(course_id=course.id, learning_style=None, mood=None)
+        .one()
+    )
+    assert global_default.is_auto is True
+    assert global_default.activity_id == activities["system"].id
+
+
+def test_ensure_defaults_creates_mood_and_style_defaults(db_session: Session) -> None:
+    course, activities = _setup_course_with_activities(db_session)
+    precise = CourseRecommendation(
+        course_id=course.id,
+        learning_style="Visual",
+        mood="happy",
+        activity_id=activities["precise"].id,
+        is_auto=False,
+    )
+    db_session.add(precise)
+    db_session.commit()
+
+    ensure_defaults_for_course(
+        db_session, course.id, [("Visual", "happy", activities["precise"].id)]
+    )
+    db_session.commit()
+
+    mood_default = (
+        db_session.query(CourseRecommendation)
+        .filter_by(course_id=course.id, learning_style=None, mood="happy")
+        .one()
+    )
+    assert mood_default.is_auto is True
+    assert mood_default.activity_id == activities["precise"].id
+
+    style_default = (
+        db_session.query(CourseRecommendation)
+        .filter_by(course_id=course.id, learning_style="Visual", mood=None)
+        .one()
+    )
+    assert style_default.is_auto is True
+    assert style_default.activity_id == activities["precise"].id
+
+
+def test_ensure_defaults_respects_manual_defaults(db_session: Session) -> None:
+    course, activities = _setup_course_with_activities(db_session)
+    manual_default = CourseRecommendation(
+        course_id=course.id,
+        learning_style=None,
+        mood="happy",
+        activity_id=activities["manual"].id,
+        is_auto=False,
+    )
+    precise = CourseRecommendation(
+        course_id=course.id,
+        learning_style="Visual",
+        mood="happy",
+        activity_id=activities["precise"].id,
+        is_auto=False,
+    )
+    db_session.add_all([manual_default, precise])
+    db_session.commit()
+
+    ensure_defaults_for_course(
+        db_session, course.id, [("Visual", "happy", activities["precise"].id)]
+    )
+    db_session.commit()
+    db_session.refresh(manual_default)
+
+    assert manual_default.activity_id == activities["manual"].id
+
+    style_default = (
+        db_session.query(CourseRecommendation)
+        .filter_by(course_id=course.id, learning_style="Visual", mood=None)
+        .one()
+    )
+    assert style_default.is_auto is True
+    assert style_default.activity_id == activities["precise"].id
 
 
 def test_build_recommended_activity_payload() -> None:

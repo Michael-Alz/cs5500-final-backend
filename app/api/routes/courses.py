@@ -21,6 +21,7 @@ from app.schemas.course import (
     CourseRecommendationsPatchIn,
     CourseUpdate,
 )
+from app.services.recommendations import ensure_defaults_for_course
 from app.services.surveys import extract_learning_style_categories
 
 router = APIRouter()
@@ -112,6 +113,10 @@ def create_course(
         db.add(course)
         db.commit()
         db.refresh(course)
+        ensure_defaults_for_course(db, course.id, [])
+        if db.new or db.dirty:
+            db.commit()
+            db.refresh(course)
         return _course_to_schema(course)
     except IntegrityError as exc:
         db.rollback()
@@ -238,6 +243,8 @@ def upsert_course_recommendations(
     """Upsert recommendation mappings for a course."""
     course = _get_course_or_404(db, course_id, current_teacher)
 
+    patched_pairs: list[tuple[Optional[str], Optional[str], str]] = []
+
     for mapping in payload.mappings:
         learning_style = _normalize_key(mapping.learning_style)
         mood = _normalize_key(mapping.mood)
@@ -285,15 +292,19 @@ def upsert_course_recommendations(
         recommendation = existing_query.first()
         if recommendation:
             recommendation.activity_id = activity.id
+            recommendation.is_auto = False
         else:
             recommendation = CourseRecommendation(
                 course_id=course.id,
                 learning_style=learning_style,
                 mood=mood,
                 activity_id=activity.id,
+                is_auto=False,
             )
             db.add(recommendation)
+        patched_pairs.append((learning_style, mood, str(activity.id)))
 
+    ensure_defaults_for_course(db, course.id, patched_pairs)
     db.commit()
 
     refreshed = _get_course_or_404(db, course_id, current_teacher, eager_recommendations=True)

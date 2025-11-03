@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     maintenance_admin_password: str | None = Field(
         None, validation_alias="MAINTENANCE_ADMIN_PASSWORD"
     )
+    system_default_activity_id: str | None = Field(
+        None, validation_alias="SYSTEM_DEFAULT_ACTIVITY_ID"
+    )
 
     # Support both JSON arrays and comma-separated strings
     @field_validator("cors_origins", mode="before")

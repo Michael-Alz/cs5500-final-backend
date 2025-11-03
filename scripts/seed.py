@@ -1098,7 +1098,7 @@ def seed_default_activity_types_and_activities(
             "name": "Calm Reset Routine",
             "summary": "Short guided breathing exercise for stressed students.",
             "type": "breathing-exercise",
-            "tags": ["mindfulness", "calm", "wellbeing"],
+            "tags": ["mindfulness", "calm", "wellbeing", "__system_default__"],
             "content_json": {
                 "script_steps": [
                     "Breathe in through your nose for 4 seconds.",
@@ -1151,6 +1151,17 @@ def seed_default_activity_types_and_activities(
 
     db.commit()
     print("🎯 Default activity types & example activities ensured.")
+    system_default_name = "Calm Reset Routine"
+    system_default = created.get(system_default_name) or existing_activities.get(
+        system_default_name
+    )
+    if system_default:
+        tags = list(system_default.tags or [])
+        if "__system_default__" not in tags:
+            tags.append("__system_default__")
+            system_default.tags = tags
+            db.add(system_default)
+            db.commit()
     return created
 
 

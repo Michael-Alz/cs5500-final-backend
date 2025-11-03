@@ -460,6 +460,17 @@ Unless noted, success responses use `200 OK`.
 -   Response 200 returns the refreshed mapping set.
 -   Failure codes: `400 UNKNOWN_LEARNING_STYLE:<value>`, `400 UNKNOWN_MOOD:<value>`, `404 ACTIVITY_NOT_FOUND:<id>`.
 
+#### Recommendation Auto-Fallbacks
+
+-   System-generated rows are tracked with `course_recommendations.is_auto`. Any teacher edit flips the flag to `false`, which shields that mapping from future auto-overwrites.
+-   Immediately after course creation the backend ensures a course-global default `(learning_style=null, mood=null)` that targets the current **system default activity**. If the activity catalog is empty, the insert is deferred until activities exist.
+-   After each recommendation PATCH the backend applies the teacher’s precise mappings and then auto-upserts:
+    -   `(null, moodY)` so guests without a stored style still land on the latest activity for that mood.
+    -   `(styleX, null)` so profile-only matches inherit the freshest rule for that style.
+    -   Auto rows are created or updated only when they are missing or already marked `is_auto=true`.
+-   When every database fallback misses, `get_recommended_activity` now returns `match_type="system-default"` rather than an empty activity payload.
+-   System default selection order: `SYSTEM_DEFAULT_ACTIVITY_ID` env var → first activity tagged `__system_default__` → newest activity overall → none (when the catalog is empty). The seed script tags **Calm Reset Routine**, and `.env.example.docker` documents the optional override knob.
+
 ### Sessions
 
 #### POST /api/courses/{course_id}/sessions
@@ -582,7 +593,7 @@ Unless noted, success responses use `200 OK`.
     	]
     }
     ```
-    The recommendation resolver falls back through style defaults, mood defaults, and random course activities.
+    The recommendation resolver falls back through style defaults, mood defaults, random course activities, and finally the platform-wide system default.
 
 ### Surveys
 
@@ -930,6 +941,7 @@ These routes are meant for local development and automated tests.
 | `learning_style` | VARCHAR(100) | Nullable learning style filter (treats null/empty as wildcard).                       |
 | `mood`         | VARCHAR(100) | Nullable mood filter (null/empty = wildcard).                                             |
 | `activity_id`  | UUID (text)  | FK → `activities.id` (`CASCADE`).                                                         |
+| `is_auto`      | BOOLEAN      | True when system-generated default; manual entries remain `false`.                        |
 | `created_at`   | TIMESTAMPTZ  | Defaults to `now()`.                                                                      |
 | `updated_at`   | TIMESTAMPTZ  | Auto-updated on change.                                                                   |
 
