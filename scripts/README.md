@@ -89,7 +89,25 @@ Populates the database with end-to-end sample data:
 ```bash
 # Seed database with sample data
 uv run python scripts/seed.py
-make db-seed
+make db-seed            # automatically runs `make db-clean` first
+```
+
+### `seed_deploy_test.py` – minimal deploy-test dataset
+
+Clears existing data and inserts only the shared catalog assets:
+
+- the two legacy survey templates (Critter Quest + Learning Buddy)
+- default activity types
+- default activities for those types
+
+No teachers, courses, sessions, or recommendations are created.
+
+#### Usage
+
+```bash
+# Seed database with catalog-only content
+uv run python scripts/seed_deploy_test.py
+make db-seed seed_deploy_test.py
 ```
 
 ### `check_db_state.py` – schema sanity check
@@ -111,12 +129,12 @@ All scripts are integrated with the Makefile for easy access:
 
 ```bash
 # Database management
-make db-status       # Show database record counts
-make db-clean        # Clean all data (with confirmation)
-make db-clean-force  # Force clean all data (no confirmation)
-make db-seed         # Seed database with sample data
-make db-check        # Check database state
-make db-migrate      # Run database migrations
+make db-status                 # Show database record counts
+make db-clean                  # Clean all data (with confirmation)
+make db-clean-force            # Force clean all data (no confirmation)
+make db-seed [script.py]       # Clean + seed (default uses scripts/seed.py)
+make db-check                  # Check database state
+make db-migrate                # Run database migrations
 ```
 
 ## Safety Features
@@ -148,8 +166,10 @@ make db-status
 # 2. Clean if needed
 make db-clean
 
-# 3. Re-seed with fresh data
-make db-seed
+# 3. Re-seed with fresh data (auto-cleans first)
+make db-seed              # default seed data
+# or keep only surveys + activity catalog
+make db-seed seed_deploy_test.py
 
 # 4. Test your changes
 make test
@@ -160,7 +180,9 @@ make test
 ```bash
 # Clean slate for testing
 make db-clean-force
-make db-seed
+make db-seed              # cleans + seeds automatically
+# or seed only catalog fixtures
+make db-seed seed_deploy_test.py
 
 # Test your feature
 # ... your testing ...

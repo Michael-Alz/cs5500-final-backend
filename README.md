@@ -958,13 +958,15 @@ Quick summary:
 
 | Command           | Description                                                                                                                         |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `make db-migrate` | Run Alembic migrations (executes inside container when available).                                                                  |
-| `make db-seed`    | Seed the DB with teacher & student accounts, surveys, sessions, submissions, **and** default activity types plus sample activities. |
-| `make db-clean`   | Truncate every application table (metadata-driven, preserves schema).                                                               |
-| `make db-status`  | Display record counts across all application tables.                                                                                |
+| `make db-migrate`          | Run Alembic migrations (executes inside container when available).                                                           |
+| `make db-seed [script.py]` | Clean + seed the DB (defaults to `scripts/seed.py`; pass `seed_deploy_test.py` for the catalog-only dataset).              |
+| `make db-clean`            | Truncate every application table (metadata-driven, preserves schema).                                                       |
+| `make db-status`           | Display record counts across all application tables.                                                                        |
 
-The seed script (`scripts/seed.py`) is idempotent: rerunning it skips existing activity types,
-activities, and recommendations, updating only what is missing.
+The default seed script (`scripts/seed.py`) is idempotent: rerunning it skips existing activity
+types, activities, and recommendations, updating only what is missing. The catalog-only variant
+(`scripts/seed_deploy_test.py`) uses the same guards while inserting just the shared survey and
+activity catalog assets.
 
 ## Development Workflow
 
@@ -975,7 +977,9 @@ activities, and recommendations, updating only what is missing.
     # or run manually:
     docker compose -f docker-compose.dev.yml up -d database
     make db-migrate
-    make db-seed
+    make db-seed              # cleans + seeds using scripts/seed.py
+    # or keep only surveys + activity catalog:
+    make db-seed seed_deploy_test.py
     ```
 
 2. **Iterate on code**: FastAPI reload is enabled in the dev container.

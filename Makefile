@@ -10,6 +10,26 @@ APP = app.main
 PORT = 8000
 
 # -------------------------------------------------
+# DB-SEED SCRIPT SELECTION
+# -------------------------------------------------
+ifeq ($(firstword $(MAKECMDGOALS)),db-seed)
+  DB_SEED_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  ifeq ($(DB_SEED_ARGS),)
+    DB_SEED_SCRIPT_RAW := scripts/seed.py
+  else
+    DB_SEED_SCRIPT_RAW := $(firstword $(DB_SEED_ARGS))
+  endif
+  ifneq ($(DB_SEED_ARGS),)
+    $(foreach arg,$(DB_SEED_ARGS),$(eval $(arg):;@:))
+  endif
+else
+  DB_SEED_SCRIPT_RAW := scripts/seed.py
+endif
+
+DB_SEED_SCRIPT := $(if $(findstring /,$(DB_SEED_SCRIPT_RAW)),$(DB_SEED_SCRIPT_RAW),$(addprefix scripts/,$(DB_SEED_SCRIPT_RAW)))
+SEED_SCRIPT ?= $(DB_SEED_SCRIPT)
+
+# -------------------------------------------------
 # INSTALLATION & SETUP
 # -------------------------------------------------
 .PHONY: setup
@@ -213,16 +233,18 @@ db-migrate:
 
 .PHONY: db-seed
 db-seed:
-	@echo "🌱 Seeding database with sample data..."
+	@echo "🧹 Cleaning database before seeding..."
+	@$(MAKE) --no-print-directory db-clean
+	@echo "🌱 Seeding database with $(SEED_SCRIPT)..."
 	@if docker ps | grep -q 5500_backend_dev; then \
 		echo "Running seed script in Docker container..."; \
-		docker-compose -f docker-compose.dev.yml exec backend uv run python scripts/seed.py; \
+		docker-compose -f docker-compose.dev.yml exec backend uv run python $(SEED_SCRIPT); \
 	elif docker ps | grep -q 5500_database_dev; then \
 		echo "Running seed script via ephemeral backend container..."; \
-		docker-compose -f docker-compose.dev.yml run --rm backend uv run python scripts/seed.py; \
+		docker-compose -f docker-compose.dev.yml run --rm backend uv run python $(SEED_SCRIPT); \
 	else \
 		echo "Running seed script locally..."; \
-		$(UV) python scripts/seed.py; \
+		$(UV) python $(SEED_SCRIPT); \
 	fi
 
 .PHONY: db-check
