@@ -102,70 +102,636 @@ make dev
 -   **CourseRecommendation**: Mapping of `(learning_style, mood)` to an `Activity` with fallback
     support (style default, mood default, random course activity).
 
-## API Surface
+## API Reference
+
+**Base URL:** `http://localhost:8000`
+
+- All responses are JSON encoded UTF-8.
+- Send `Content-Type: application/json` on requests with bodies.
+- Teacher routes require `Authorization: Bearer <JWT from /api/teachers/login>`.
+- Student routes require `Authorization: Bearer <JWT from /api/students/login>`.
+- IDs are UUID strings serialized as plain text; treat them as opaque identifiers.
+- Maintenance routes under `/api/admin` are only enabled when `APP_ENV` is `dev` or `test` and check `MAINTENANCE_ADMIN_PASSWORD`.
+
+### Error Details
+
+FastAPI validation failures follow Pydantic's error format. Domain guards raise `HTTPException` with a `detail` string (or structured object) that the frontend can interpret:
+
+- `AUTH_EMAIL_EXISTS`, `AUTH_INVALID_CREDENTIALS`
+- `ADMIN_DISABLED`, `ADMIN_PASSWORD_NOT_CONFIGURED`, `INVALID_PASSWORD`
+- `ADMIN_ONLY`, `ACTIVITY_TYPE_EXISTS`
+- `ACTIVITY_NOT_FOUND`, `ACTIVITY_TYPE_NOT_FOUND`, `ACTIVITY_TYPE_MISSING`, `NOT_ACTIVITY_CREATOR`
+- `MISSING_REQUIRED_FIELDS`, `CONTENT_JSON_MUST_BE_OBJECT`
+- `COURSE_NOT_FOUND`, `COURSE_ACCESS_DENIED`, `COURSE_TITLE_EXISTS`, `COURSE_MOOD_LABELS_NOT_CONFIGURED`, `COURSE_BASELINE_NOT_SET`
+- `SURVEY_TEMPLATE_NOT_FOUND`, `Survey template not found`
+- `MOOD_LABELS_REQUIRED`, `UNKNOWN_LEARNING_STYLE:<value>`, `UNKNOWN_MOOD:<value>`
+- `SESSION_NOT_FOUND`, `SESSION_ALREADY_CLOSED`, `SESSION_CLOSED`
+- `INVALID_MOOD_LABEL`, `ANSWERS_REQUIRED`, `GUEST_NAME_REQUIRED`
+
+Unless noted, success responses use `200 OK`.
+
+### Health & Metadata
+
+#### GET /
+
+- Auth: none
+- Returns:
+  ```json
+  {"message": "5500 Backend is running!"}
+  ```
+
+#### GET /health
+
+- Auth: none
+- Returns:
+  ```json
+  {"status": "ok", "env": "dev"}
+  ```
+
+#### GET /favicon.ico
+
+- Auth: none
+- Returns an empty string to keep browsers from logging 404s.
 
 ### Teacher Authentication
 
-| Method | Endpoint               | Description         |
-| ------ | ---------------------- | ------------------- |
-| POST   | `/api/teachers/signup` | Register a teacher. |
-| POST   | `/api/teachers/login`  | Obtain a JWT.       |
+#### POST /api/teachers/signup
+
+- Auth: none
+- Request body:
+  ```json
+  {
+    "email": "prof@example.edu",
+    "password": "Supersafe123",
+    "full_name": "Prof. Ada Lovelace"
+  }
+  ```
+- Response 200:
+  ```json
+  {
+    "id": "8f1b96f2-8df4-4bb3-bfda-bc3f9c9f4c27",
+    "email": "prof@example.edu",
+    "full_name": "Prof. Ada Lovelace"
+  }
+  ```
+- Failure codes: `400 AUTH_EMAIL_EXISTS`.
+
+#### POST /api/teachers/login
+
+- Auth: none
+- Request body:
+  ```json
+  {
+    "email": "prof@example.edu",
+    "password": "Supersafe123"
+  }
+  ```
+- Response 200:
+  ```json
+  {
+    "access_token": "<jwt>",
+    "token_type": "bearer"
+  }
+  ```
+- Failure codes: `401 AUTH_INVALID_CREDENTIALS`.
 
 ### Student Authentication
 
-| Method | Endpoint                    | Description                                       |
-| ------ | --------------------------- | ------------------------------------------------- |
-| POST   | `/api/students/signup`      | Register a student.                               |
-| POST   | `/api/students/login`       | Obtain a student JWT.                             |
-| GET    | `/api/students/me`          | Profile of the authenticated student.             |
-| GET    | `/api/students/submissions` | Student submission history (sorted newest first). |
+#### POST /api/students/signup
 
-### Courses & Recommendations (Teacher JWT required)
+- Auth: none
+- Request body:
+  ```json
+  {
+    "email": "student@example.edu",
+    "password": "MySecret123",
+    "full_name": "Jordan Student"
+  }
+  ```
+- Response 200 mirrors teacher signup.
+- Failure codes: `400 AUTH_EMAIL_EXISTS`.
 
-| Method | Endpoint                                   | Description                                                  |
-| ------ | ------------------------------------------ | ------------------------------------------------------------ |
-| POST   | `/api/courses`                             | Create a course with baseline survey + mood labels.          |
-| GET    | `/api/courses`                             | List teacher's courses.                                      |
-| GET    | `/api/courses/{course_id}`                 | Fetch a single course owned by the authenticated teacher.    |
-| PATCH  | `/api/courses/{course_id}`                 | Update title / swap baseline survey (auto-flags rebaseline). |
-| GET    | `/api/courses/{course_id}/recommendations` | Fetch mood/style mappings + course metadata.                 |
-| PATCH  | `/api/courses/{course_id}/recommendations` | Upsert recommendation mappings (validates moods & styles).   |
+#### POST /api/students/login
 
-### Sessions (Teacher JWT required)
+- Auth: none
+- Request body mirrors teacher login.
+- Response 200 matches the teacher login token shape.
+- Failure codes: `401 AUTH_INVALID_CREDENTIALS`.
 
-| Method | Endpoint                                 | Description                                                    |
-| ------ | ---------------------------------------- | -------------------------------------------------------------- |
-| POST   | `/api/sessions/{course_id}/sessions`     | Create a new class session. Enforces rebaseline when required. |
-| POST   | `/api/sessions/{session_id}/close`       | Soft-close a session (blocks new submissions).                 |
-| GET    | `/api/sessions/{session_id}/submissions` | List submissions for a session.                                |
-| GET    | `/api/sessions/{session_id}/dashboard`   | Aggregated mood + participant recommendations for teachers.    |
+#### GET /api/students/me
 
-### Activity Library
+- Auth: student bearer token.
+- Response 200:
+  ```json
+  {
+    "id": "e54e9f57-4df1-4468-9f7f-0b6a3cb3fc7e",
+    "email": "student@example.edu",
+    "full_name": "Jordan Student",
+    "created_at": "2024-02-14T18:22:49.123456+00:00"
+  }
+  ```
 
-| Method | Endpoint               | Description                                                                      |
-| ------ | ---------------------- | -------------------------------------------------------------------------------- |
-| GET    | `/api/activity-types`  | Public list of available activity types.                                         |
-| POST   | `/api/activity-types`  | Admin-only creation of a new activity type (based on `settings.admin_emails`).   |
-| GET    | `/api/activities`      | List activities (filterable via `?type=`).                                       |
-| POST   | `/api/activities`      | Create activity (teacher JWT required). Validates required fields from the type. |
-| GET    | `/api/activities/{id}` | Fetch details for a single activity.                                             |
-| PATCH  | `/api/activities/{id}` | Update activity (creator-only).                                                  |
+#### GET /api/students/submissions
 
-### Public Join & Submission Flow
+- Auth: student bearer token.
+- Returns most recent submissions in reverse chronological order.
+- Response 200:
+  ```json
+  {
+    "submissions": [
+      {
+        "id": "59d8b6bb-4e3b-4f28-a854-91771b65d2ac",
+        "session_id": "d4cfc5e6-bb0f-4be7-8531-81089cb91f71",
+        "course_title": "CS 5500",
+        "answers": {"q1": "option_a"},
+        "total_scores": {"visual": 9, "auditory": 3},
+        "status": "completed",
+        "created_at": "2024-03-01T15:42:10.000000+00:00",
+        "updated_at": null
+      }
+    ],
+    "total": 1
+  }
+  ```
+  The API returns an empty object for `answers` when no survey was completed.
 
-| Method | Endpoint                                   | Description                                                                          |
-| ------ | ------------------------------------------ | ------------------------------------------------------------------------------------ |
-| GET    | `/api/public/join/{join_token}`            | Retrieve session info (mood schema + survey snapshot when required).                 |
-| POST   | `/api/public/join/{join_token}/submit`     | Submit mood (and answers when required). Supports guests and authenticated students. |
-| GET    | `/api/public/join/{join_token}/submission` | Check if a participant submitted already (guest ID or student token).                |
+### Activity Types
+
+#### GET /api/activity-types
+
+- Auth: none.
+- Returns all activity types sorted by `type_name`.
+- Response snippet:
+  ```json
+  [
+    {
+      "type_name": "mindfulness",
+      "description": "Short grounding and breathing activities.",
+      "required_fields": ["duration_minutes", "script"],
+      "optional_fields": ["materials"],
+      "example_content_json": {"duration_minutes": 5, "script": "..."},
+      "created_at": "2024-02-01T12:00:00+00:00",
+      "updated_at": "2024-02-01T12:00:00+00:00"
+    }
+  ]
+  ```
+
+#### POST /api/activity-types
+
+- Auth: teacher bearer token. Creator must have an email listed in `settings.admin_emails`.
+- Request body:
+  ```json
+  {
+    "type_name": "gallery_walk",
+    "description": "Students rotate through stations adding ideas.",
+    "required_fields": ["stations", "timing"],
+    "optional_fields": ["materials", "debrief_questions"],
+    "example_content_json": {
+      "stations": [
+        {"title": "Brainstorm", "prompt": "Add one idea per sticky note."}
+      ],
+      "timing": "15 minutes"
+    }
+  }
+  ```
+- Response 201 echoes the persisted object.
+- Failure codes: `403 ADMIN_ONLY`, `400 ACTIVITY_TYPE_EXISTS`.
+
+### Activities
+
+#### GET /api/activities
+
+- Auth: none.
+- Query parameters:
+  - `type` (alias for `type_filter`) filters by `Activity.type`.
+  - `tag` (single string) filters activities whose `tags` array contains the value.
+- Response 200 is a list of `ActivityOut` objects:
+  ```json
+  [
+    {
+      "id": "6cf18022-596c-428d-8b44-3bb994e593f3",
+      "name": "Box Breathing",
+      "summary": "Guided 4-4-4-4 breathing pattern.",
+      "type": "mindfulness",
+      "tags": ["calm", "focus"],
+      "content_json": {"duration_minutes": 5, "script": "..."},
+      "creator_id": "b6d3c9bf-d733-4ff1-a5aa-5d232a21eb2d",
+      "creator_name": "Prof. Ada Lovelace",
+      "creator_email": "prof@example.edu",
+      "created_at": "2024-02-20T17:10:00+00:00",
+      "updated_at": "2024-02-20T17:10:00+00:00"
+    }
+  ]
+  ```
+
+#### GET /api/activities/{activity_id}
+
+- Auth: none.
+- Returns a single `ActivityOut`.
+- Failure codes: `404 ACTIVITY_NOT_FOUND`.
+
+#### POST /api/activities
+
+- Auth: teacher bearer token.
+- Request body:
+  ```json
+  {
+    "name": "Five Senses Check-In",
+    "summary": "Students share one thing they can see, hear, and feel.",
+    "type": "mindfulness",
+    "tags": ["grounding", "community"],
+    "content_json": {
+      "duration_minutes": 10,
+      "instructions": [
+        "Prompt students for sight, sound, and touch observations."
+      ]
+    }
+  }
+  ```
+- Response 201 returns the full `ActivityOut`.
+- Failure codes:
+  - `404 ACTIVITY_TYPE_NOT_FOUND` when `type` is unknown.
+  - `400 CONTENT_JSON_MUST_BE_OBJECT` if `content_json` is not a JSON object.
+  - `400 MISSING_REQUIRED_FIELDS` with a `fields` array listing omissions.
+
+#### PATCH /api/activities/{activity_id}
+
+- Auth: teacher bearer token; only the creator can modify an activity.
+- Any subset of `name`, `summary`, `tags`, or `content_json` may be provided.
+- Response 200 mirrors `ActivityOut`.
+- Failure codes: `404 ACTIVITY_NOT_FOUND`, `403 NOT_ACTIVITY_CREATOR`, plus the same validation guards used on creation. If the stored activity type was deleted, the API raises `500 ACTIVITY_TYPE_MISSING`.
+
+### Courses
+
+#### POST /api/courses
+
+- Auth: teacher bearer token.
+- Request body:
+  ```json
+  {
+    "title": "Intro to Human-Centered Design",
+    "baseline_survey_id": "c51a1d83-0c8c-4cc3-a3f9-151ad5fb5f09",
+    "mood_labels": ["energized", "curious", "tired"]
+  }
+  ```
+- Behavior: fetches the survey template to derive `learning_style_categories`; `mood_labels` are trimmed and deduplicated; blank values are rejected.
+- Response 201:
+  ```json
+  {
+    "id": "ad6a32d2-6861-4fb2-9bf3-31f3ad8ac878",
+    "title": "Intro to Human-Centered Design",
+    "baseline_survey_id": "c51a1d83-0c8c-4cc3-a3f9-151ad5fb5f09",
+    "learning_style_categories": ["auditory", "kinesthetic", "visual"],
+    "mood_labels": ["energized", "curious", "tired"],
+    "requires_rebaseline": true,
+    "created_at": "2024-03-05T14:00:00+00:00",
+    "updated_at": "2024-03-05T14:00:00+00:00"
+  }
+  ```
+- Failure codes: `404 SURVEY_TEMPLATE_NOT_FOUND`, `400 MOOD_LABELS_REQUIRED`, `400 COURSE_TITLE_EXISTS`.
+
+#### GET /api/courses
+
+- Auth: teacher bearer token.
+- Returns all courses owned by the teacher.
+
+#### GET /api/courses/{course_id}
+
+- Auth: teacher bearer token.
+- Enforces ownership; otherwise returns `403 COURSE_ACCESS_DENIED`.
+- Failure codes: `404 COURSE_NOT_FOUND`.
+
+#### PATCH /api/courses/{course_id}
+
+- Auth: teacher bearer token.
+- Request body accepts `title` and/or `baseline_survey_id`. Updating the baseline survey recalculates `learning_style_categories` and marks `requires_rebaseline` as `true`.
+- Response 200 mirrors `CourseOut`.
+- Failure codes mirror creation (including `SURVEY_TEMPLATE_NOT_FOUND`).
+
+#### GET /api/courses/{course_id}/recommendations
+
+- Auth: teacher bearer token.
+- Returns:
+  ```json
+  {
+    "course_id": "ad6a32d2-6861-4fb2-9bf3-31f3ad8ac878",
+    "learning_style_categories": ["auditory", "kinesthetic", "visual"],
+    "mood_labels": ["energized", "curious", "tired"],
+    "mappings": [
+      {
+        "learning_style": "visual",
+        "mood": "curious",
+        "activity": {
+          "activity_id": "6cf18022-596c-428d-8b44-3bb994e593f3",
+          "name": "Box Breathing",
+          "summary": "Guided 4-4-4-4 breathing pattern.",
+          "type": "mindfulness",
+          "content_json": {"duration_minutes": 5, "script": "..."}
+        }
+      }
+    ]
+  }
+  ```
+
+#### PATCH /api/courses/{course_id}/recommendations
+
+- Auth: teacher bearer token.
+- Request body:
+  ```json
+  {
+    "mappings": [
+      {"learning_style": "visual", "mood": "curious", "activity_id": "6cf18022-596c-428d-8b44-3bb994e593f3"},
+      {"learning_style": null, "mood": "tired", "activity_id": "30b65c54-8aba-4ba7-9f38-3a1e0a6d9e38"}
+    ]
+  }
+  ```
+- Behavior: blank or wildcard values (`null`, "*", "any", "default") are stored as fallbacks. Entries are upserted; existing mappings are updated in place.
+- Response 200 returns the refreshed mapping set.
+- Failure codes: `400 UNKNOWN_LEARNING_STYLE:<value>`, `400 UNKNOWN_MOOD:<value>`, `404 ACTIVITY_NOT_FOUND:<id>`.
+
+### Sessions
+
+#### POST /api/courses/{course_id}/sessions
+
+- Auth: teacher bearer token.
+- Request body:
+  ```json
+  {"require_survey": true}
+  ```
+  The flag is optional; the API also forces surveys when `course.requires_rebaseline` is true.
+- Response 201:
+  ```json
+  {
+    "session_id": "c9f3b647-9ce1-4a54-9de2-5ef182d2e8e3",
+    "course_id": "ad6a32d2-6861-4fb2-9bf3-31f3ad8ac878",
+    "require_survey": true,
+    "mood_check_schema": {"prompt": "How are you feeling today?", "options": ["energized", "curious", "tired"]},
+    "survey_snapshot_json": {
+      "survey_id": "c51a1d83-0c8c-4cc3-a3f9-151ad5fb5f09",
+      "title": "Baseline Learning Preferences",
+      "questions": [
+        {
+          "id": "q1",
+          "text": "How do you prefer to learn new concepts?",
+          "options": [
+            {"label": "Watch a demonstration", "scores": {"visual": 3}},
+            {"label": "Listen to an explanation", "scores": {"auditory": 3}}
+          ]
+        }
+      ]
+    },
+    "started_at": "2024-03-06T17:30:00+00:00",
+    "closed_at": null,
+    "join_token": "4W3L6uA9gqX2Y1bK",
+    "qr_url": "http://localhost:5173/join?s=4W3L6uA9gqX2Y1bK"
+  }
+  ```
+- Failure codes: `404 COURSE_NOT_FOUND`, `400 COURSE_MOOD_LABELS_NOT_CONFIGURED`, `400 COURSE_BASELINE_NOT_SET`, `404 SURVEY_TEMPLATE_NOT_FOUND`.
+
+#### POST /api/sessions/{session_id}/close
+
+- Auth: teacher bearer token.
+- Response 200:
+  ```json
+  {"status": "CLOSED"}
+  ```
+- Failure codes: `404 SESSION_NOT_FOUND`, `400 SESSION_ALREADY_CLOSED`.
+
+#### GET /api/sessions/{session_id}/submissions
+
+- Auth: teacher bearer token.
+- Returns submissions ordered by creation time.
+- Response 200:
+  ```json
+  {
+    "session_id": "c9f3b647-9ce1-4a54-9de2-5ef182d2e8e3",
+    "count": 2,
+    "items": [
+      {
+        "student_name": null,
+        "student_id": "e54e9f57-4df1-4468-9f7f-0b6a3cb3fc7e",
+        "student_full_name": "Jordan Student",
+        "mood": "energized",
+        "answers": {"q1": "option_a"},
+        "total_scores": {"visual": 9, "auditory": 3},
+        "learning_style": "visual",
+        "is_baseline_update": true,
+        "status": "completed",
+        "created_at": "2024-03-06T17:35:00+00:00",
+        "updated_at": "2024-03-06T17:36:00+00:00"
+      }
+    ]
+  }
+  ```
+
+#### GET /api/sessions/{session_id}/dashboard
+
+- Auth: teacher bearer token.
+- Response 200 summarises session engagement:
+  ```json
+  {
+    "session_id": "c9f3b647-9ce1-4a54-9de2-5ef182d2e8e3",
+    "course_id": "ad6a32d2-6861-4fb2-9bf3-31f3ad8ac878",
+    "course_title": "Intro to Human-Centered Design",
+    "require_survey": true,
+    "mood_summary": {"energized": 3, "tired": 1},
+    "participants": [
+      {
+        "display_name": "Jordan Student",
+        "mode": "student",
+        "student_id": "e54e9f57-4df1-4468-9f7f-0b6a3cb3fc7e",
+        "guest_id": null,
+        "mood": "energized",
+        "learning_style": "visual",
+        "recommended_activity": {
+          "match_type": "style+mood",
+          "learning_style": "visual",
+          "mood": "energized",
+          "activity": {
+            "activity_id": "6cf18022-596c-428d-8b44-3bb994e593f3",
+            "name": "Box Breathing",
+            "summary": "Guided 4-4-4-4 breathing pattern.",
+            "type": "mindfulness",
+            "content_json": {"duration_minutes": 5, "script": "..."}
+          }
+        }
+      }
+    ]
+  }
+  ```
+  The recommendation resolver falls back through style defaults, mood defaults, and random course activities.
 
 ### Surveys
 
-| Method | Endpoint                | Description                           |
-| ------ | ----------------------- | ------------------------------------- |
-| POST   | `/api/surveys`          | Create a survey template.             |
-| GET    | `/api/surveys`          | List survey templates (newest first). |
-| GET    | `/api/surveys/{survey}` | Fetch a single survey template.       |
+#### POST /api/surveys
+
+- Auth: teacher bearer token.
+- Request body:
+  ```json
+  {
+    "title": "Baseline Learning Preferences",
+    "questions": [
+      {
+        "id": "q1",
+        "text": "How do you prefer to learn new concepts?",
+        "options": [
+          {"label": "Watch a demonstration", "scores": {"visual": 3, "kinesthetic": 1}},
+          {"label": "Listen to an explanation", "scores": {"auditory": 3}}
+        ]
+      }
+    ]
+  }
+  ```
+  Each question must be an object with `id`, `text`, and a non-empty `options` array. Every option must include `label` and `scores` (map of category names to numeric weights).
+- Response 200:
+  ```json
+  {
+    "id": "c51a1d83-0c8c-4cc3-a3f9-151ad5fb5f09",
+    "title": "Baseline Learning Preferences",
+    "questions": [
+      {
+        "id": "q1",
+        "text": "How do you prefer to learn new concepts?",
+        "options": [
+          {"label": "Watch a demonstration", "scores": {"visual": 3, "kinesthetic": 1}},
+          {"label": "Listen to an explanation", "scores": {"auditory": 3}}
+        ]
+      }
+    ],
+    "creator_name": "Prof. Ada Lovelace",
+    "creator_id": "b6d3c9bf-d733-4ff1-a5aa-5d232a21eb2d",
+    "creator_email": "prof@example.edu",
+    "created_at": "2024-02-28T16:00:00+00:00",
+    "total": 1
+  }
+  ```
+- Failure codes: detailed validation messages (e.g., "Question 1 must have an 'id' field"), plus `400 Survey with this title already exists`.
+
+#### GET /api/surveys
+
+- Auth: teacher bearer token.
+- Returns all templates sorted by newest first. Each entry mirrors `SurveyTemplateOut`.
+
+#### GET /api/surveys/{survey_id}
+
+- Auth: teacher bearer token.
+- Failure codes: `404 Survey template not found`.
+
+### Public Session Flow
+
+These endpoints serve the join-link experience. Authentication is optional; if a valid student token is supplied, submissions are tied to that student instead of guest mode.
+
+#### GET /api/public/join/{join_token}
+
+- Returns session metadata when the session is open:
+  ```json
+  {
+    "session_id": "c9f3b647-9ce1-4a54-9de2-5ef182d2e8e3",
+    "course_id": "ad6a32d2-6861-4fb2-9bf3-31f3ad8ac878",
+    "course_title": "Intro to Human-Centered Design",
+    "require_survey": true,
+    "mood_check_schema": {"prompt": "How are you feeling today?", "options": ["energized", "curious", "tired"]},
+    "survey": {
+      "survey_id": "c51a1d83-0c8c-4cc3-a3f9-151ad5fb5f09",
+      "title": "Baseline Learning Preferences",
+      "questions": [
+        {
+          "question_id": "q1",
+          "text": "How do you prefer to learn new concepts?",
+          "options": [
+            {"option_id": "q1_opt_0", "text": "Watch a demonstration"},
+            {"option_id": "q1_opt_1", "text": "Listen to an explanation"}
+          ]
+        }
+      ]
+    },
+    "status": "OPEN"
+  }
+  ```
+- Failure codes: `404 SESSION_NOT_FOUND`, `400 SESSION_CLOSED`.
+
+#### POST /api/public/join/{join_token}/submit
+
+- Accepts mood check (and optional survey answers). If no bearer token is supplied or `is_guest` is true, `student_name` must be provided and the API will either reuse the supplied `guest_id` or generate one.
+- Request body (guest example):
+  ```json
+  {
+    "mood": "energized",
+    "answers": {"q1": "q1_opt_0"},
+    "is_guest": true,
+    "student_name": "Alex Guest",
+    "guest_id": null
+  }
+  ```
+- Response 200:
+  ```json
+  {
+    "submission_id": "1f85d7a4-5cd9-4a24-9e5c-32a1f0922a5b",
+    "student_id": null,
+    "guest_id": "0a9c8f44-6e16-4d9f-912b-e3abc96d2f5d",
+    "require_survey": true,
+    "is_baseline_update": true,
+    "mood": "energized",
+    "learning_style": "visual",
+    "total_scores": {"visual": 9, "auditory": 3},
+    "recommended_activity": {
+      "match_type": "style+mood",
+      "learning_style": "visual",
+      "mood": "energized",
+      "activity": {
+        "activity_id": "6cf18022-596c-428d-8b44-3bb994e593f3",
+        "name": "Box Breathing",
+        "summary": "Guided 4-4-4-4 breathing pattern.",
+        "type": "mindfulness",
+        "content_json": {"duration_minutes": 5, "script": "..."}
+      }
+    },
+    "message": "Thanks! Your style for this course has been updated."
+  }
+  ```
+- Failure codes: `404 SESSION_NOT_FOUND`, `400 SESSION_CLOSED`, `400 INVALID_MOOD_LABEL`, `400 GUEST_NAME_REQUIRED`, `400 ANSWERS_REQUIRED`.
+
+#### GET /api/public/join/{join_token}/submission
+
+- Query parameters: `guest_id` when continuing as the same guest; alternatively supply a student bearer token.
+- Response 200:
+  ```json
+  {"submitted": true}
+  ```
+
+### Admin Maintenance
+
+These routes are meant for local development and automated tests.
+
+#### POST /api/admin/reset
+
+- Auth: none (password gate only).
+- Request body:
+  ```json
+  {"password": "changeme"}
+  ```
+- Response 200:
+  ```json
+  {
+    "deleted": {
+      "activities": 12,
+      "course_recommendations": 18,
+      "sessions": 4,
+      "students": 0
+    }
+  }
+  ```
+- Failure codes: `403 ADMIN_DISABLED`, `500 ADMIN_PASSWORD_NOT_CONFIGURED`, `403 INVALID_PASSWORD`.
+
+#### POST /api/admin/seed
+
+- Auth: none (password gate only).
+- Request body mirrors `/api/admin/reset`.
+- Response 202:
+  ```json
+  {"status": "seeded"}
+  ```
+- Failure codes match `/api/admin/reset`.
 
 ## Database Entities (Summary)
 
