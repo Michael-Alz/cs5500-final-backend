@@ -781,7 +781,14 @@ These routes are meant for local development and automated tests.
 #### POST /api/admin/seed
 
 -   Auth: none (password gate only).
--   Request body mirrors `/api/admin/reset`.
+-   Request body:
+    ```json
+    {
+        "password": "changeme",
+        "seed_variant": "seed"
+    }
+    ```
+    -   `seed_variant` (optional) chooses the script: `"seed"` (default, loads full demo data) or `"seed_deploy_test"` (loads the lightweight deploy-test dataset).
 -   Response 202:
     ```json
     { "status": "seeded" }

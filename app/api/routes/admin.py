@@ -1,13 +1,22 @@
+from collections.abc import Callable
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db import get_db
-from app.schemas.admin import AdminActionRequest
+from app.schemas.admin import AdminActionRequest, SeedVariant
 from app.services.maintenance import clear_database_data
-from scripts.seed import seed_data
+from scripts import seed as full_seed
+from scripts import seed_deploy_test
 
 router = APIRouter()
+
+SeedRunner = Callable[[], None]
+SEED_RUNNERS: dict[SeedVariant, SeedRunner] = {
+    SeedVariant.SEED: full_seed.seed_data,
+    SeedVariant.DEPLOY_TEST: seed_deploy_test.seed_data,
+}
 
 
 def _ensure_non_prod_environment() -> None:
@@ -46,5 +55,6 @@ def seed_database(payload: AdminActionRequest) -> dict[str, str]:
     _ensure_non_prod_environment()
     _verify_password(payload)
 
-    seed_data()
+    seed_runner = SEED_RUNNERS[payload.seed_variant]
+    seed_runner()
     return {"status": "seeded"}
