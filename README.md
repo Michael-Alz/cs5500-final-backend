@@ -473,7 +473,46 @@ Unless noted, success responses use `200 OK`.
 
 ### Sessions
 
-#### POST /api/courses/{course_id}/sessions
+#### GET /api/sessions/{course_id}/sessions
+
+-   Auth: teacher bearer token.
+-   Returns every session for the course ordered by `started_at` descending so the newest session is first.
+-   Response 200:
+    ```json
+    [
+    	{
+    		"session_id": "c9f3b647-9ce1-4a54-9de2-5ef182d2e8e3",
+    		"course_id": "ad6a32d2-6861-4fb2-9bf3-31f3ad8ac878",
+    		"require_survey": true,
+    		"mood_check_schema": {
+    			"prompt": "How are you feeling heading into class?",
+    			"options": ["energized", "curious", "tired"]
+    		},
+    		"survey_snapshot_json": { "survey_id": "c51a1d83-0c8-4cc3-a3f9-151ad5fb5f09" },
+    		"started_at": "2024-03-06T17:30:00+00:00",
+    		"closed_at": null,
+    		"join_token": "4W3L6uA9gqX2Y1bK",
+    		"qr_url": "http://localhost:5173/join?s=4W3L6uA9gqX2Y1bK"
+    	},
+    	{
+    		"session_id": "1a6423c4-51f4-4f07-9f11-2db1df5a9dff",
+    		"course_id": "ad6a32d2-6861-4fb2-9bf3-31f3ad8ac878",
+    		"require_survey": false,
+    		"mood_check_schema": {
+    			"prompt": "How are you feeling today?",
+    			"options": ["energized", "curious", "tired"]
+    		},
+    		"survey_snapshot_json": null,
+    		"started_at": "2024-02-28T15:00:00+00:00",
+    		"closed_at": "2024-02-28T16:15:00+00:00",
+    		"join_token": "Q2xK0uN4LgWeP6s7",
+    		"qr_url": "http://localhost:5173/join?s=Q2xK0uN4LgWeP6s7"
+    	}
+    ]
+    ```
+-   Failure codes: `404 COURSE_NOT_FOUND`.
+
+#### POST /api/sessions/{course_id}/sessions
 
 -   Auth: teacher bearer token.
 -   Request body:

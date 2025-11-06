@@ -120,6 +120,39 @@ def _build_recommended_activity_schema(
     return RecommendedActivityOut.model_validate(payload)
 
 
+def _session_to_schema(session: ClassSession) -> SessionOut:
+    """Serialize a session with the computed join QR URL."""
+    qr_url = f"{settings.public_app_url}/join?s={session.join_token}"
+    return SessionOut(
+        session_id=str(session.id),
+        course_id=str(session.course_id),
+        require_survey=bool(session.require_survey),
+        mood_check_schema=session.mood_check_schema or {"prompt": "", "options": []},
+        survey_snapshot_json=session.survey_snapshot_json,
+        started_at=session.started_at,  # type: ignore[arg-type]
+        closed_at=session.closed_at,  # type: ignore[arg-type]
+        join_token=session.join_token,
+        qr_url=qr_url,
+    )
+
+
+@router.get("/{course_id}/sessions", response_model=List[SessionOut])
+def list_course_sessions(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_teacher: Teacher = Depends(get_current_teacher),
+) -> List[SessionOut]:
+    """List all sessions for a course."""
+    course = _get_course_for_teacher(db, course_id, current_teacher)
+    sessions = (
+        db.query(ClassSession)
+        .filter(ClassSession.course_id == course.id)
+        .order_by(ClassSession.started_at.desc())
+        .all()
+    )
+    return [_session_to_schema(session) for session in sessions]
+
+
 @router.post(
     "/{course_id}/sessions", response_model=SessionOut, status_code=status.HTTP_201_CREATED
 )
@@ -170,19 +203,7 @@ def create_session(
     db.refresh(session)
     db.refresh(course)
 
-    qr_url = f"{settings.public_app_url}/join?s={join_token}"
-
-    return SessionOut(
-        session_id=str(session.id),
-        course_id=str(session.course_id),
-        require_survey=bool(session.require_survey),
-        mood_check_schema=session.mood_check_schema or {"prompt": "", "options": []},
-        survey_snapshot_json=session.survey_snapshot_json,
-        started_at=session.started_at,  # type: ignore[arg-type]
-        closed_at=session.closed_at,  # type: ignore[arg-type]
-        join_token=session.join_token,
-        qr_url=qr_url,
-    )
+    return _session_to_schema(session)
 
 
 @router.post("/{session_id}/close", response_model=SessionCloseOut)

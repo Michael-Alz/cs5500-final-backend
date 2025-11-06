@@ -278,7 +278,11 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
     - Verify the mappings, mood labels, and learning-style categories.
 
 ### 8. Sessions (Teacher JWT)
-26. **POST** `http://localhost:8000/api/sessions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/sessions`  
+26. **GET** `http://localhost:8000/api/sessions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/sessions`  
+    - Auth header: `Bearer TEACHER_JWT_TOKEN`.
+    - Expect `200` with an array of every session for the course ordered newest first. Use this to confirm whether you need to spin up a new live session or reuse an existing join token.
+
+27. **POST** `http://localhost:8000/api/sessions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/sessions`  
     Body:
     ```json
     {
@@ -295,23 +299,23 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
     ```
     - Save QR URL if needed.
 
-27. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/submissions`  
+28. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/submissions`  
     - Expect `count: 0`.
 
-28. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/dashboard`  
+29. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/dashboard`  
     - Expect empty `participants` array initially.
 
 ### 9. Public Join & Submission (No Auth / Optional Student Auth)
-29. **GET** `http://localhost:8000/api/public/join/joinTokenSample123`  
+30. **GET** `http://localhost:8000/api/public/join/joinTokenSample123`  
     - Expect `200` with course + survey snapshot (because survey required).
 
-30. Negative validation: **POST** `.../submit` with missing mood  
+31. Negative validation: **POST** `.../submit` with missing mood  
     ```json
     { "is_guest": true }
     ```
     - Expect `422`.
 
-31. **POST** `http://localhost:8000/api/public/join/joinTokenSample123/submit` (Guest, survey required)  
+32. **POST** `http://localhost:8000/api/public/join/joinTokenSample123/submit` (Guest, survey required)  
     Body:
     ```json
     {
@@ -332,26 +336,26 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
     pm.environment.set("guestId", payload.guest_id);
     ```
 
-32. Resubmit as same guest to verify idempotent upsert: include `"guest_id": "guest-sample-12345"` and change `"mood": "energized"` → expect response shares same `submission_id`.
+33. Resubmit as same guest to verify idempotent upsert: include `"guest_id": "guest-sample-12345"` and change `"mood": "energized"` → expect response shares same `submission_id`.
 
-33. **GET** `http://localhost:8000/api/public/join/joinTokenSample123/submission?guest_id=guest-sample-12345`  
+34. **GET** `http://localhost:8000/api/public/join/joinTokenSample123/submission?guest_id=guest-sample-12345`  
     - Expect `{"submitted": true}`.
 
-34. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/submissions` (Teacher JWT)  
+35. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/submissions` (Teacher JWT)  
     - Expect `count >= 1`, confirm mood updated.
 
-35. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/dashboard`  
+36. **GET** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/dashboard`  
     - Expect participant entry with `recommended_activity`.
 
-35. **POST** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/close` (Teacher JWT)  
+37. **POST** `http://localhost:8000/api/sessions/12345678-90ab-cdef-1234-567890abcdef/close` (Teacher JWT)  
     - Expect `{"status": "CLOSED"}`.
 
-36. **GET** `http://localhost:8000/api/public/join/joinTokenSample123`  
+38. **GET** `http://localhost:8000/api/public/join/joinTokenSample123`  
     - Now returns `400` `SESSION_CLOSED`.
 
-37. Create a second session where survey is optional: repeat step 25 and save new `sessionId`/`joinToken`. Confirm `require_survey` is `false` this time because the course no longer requires rebaseline.
+39. Create a second session where survey is optional: repeat step 27 and save new `sessionId`/`joinToken`. Confirm `require_survey` is `false` this time because the course no longer requires rebaseline.
 
-38. Logged-in student submission (no survey required):  
+40. Logged-in student submission (no survey required):  
     **POST** `http://localhost:8000/api/public/join/joinTokenSample123/submit` with header `Authorization: Bearer STUDENT_JWT_TOKEN` and body:
     ```json
     {
