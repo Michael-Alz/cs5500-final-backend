@@ -278,7 +278,7 @@ Unless noted, success responses use `200 OK`.
 
 #### POST /api/activity-types
 
--   Auth: teacher bearer token. Creator must have an email listed in `settings.admin_emails`.
+-   Auth: teacher bearer token.
 -   Request body:
     ```json
     {
@@ -298,7 +298,7 @@ Unless noted, success responses use `200 OK`.
     }
     ```
 -   Response 201 echoes the persisted object.
--   Failure codes: `403 ADMIN_ONLY`, `400 ACTIVITY_TYPE_EXISTS`.
+-   Failure codes: `400 ACTIVITY_TYPE_EXISTS`.
 
 ### Activities
 
@@ -1030,9 +1030,7 @@ The integration tests will automatically skip database-marked tests if the conne
 
 ## Admin Notes
 
-Activity-type creation is restricted to admin teachers. Configure admins by setting
-`ADMIN_EMAILS` (ENV var) or editing `.env.dev.docker`. Tests use `monkeypatch` to temporarily
-set `settings.admin_emails`.
+All authenticated teachers can now create activity types; no additional configuration is required.
 
 -   Dev/test builds expose two maintenance endpoints for local setup:
     -   `POST /api/admin/reset` clears every table but keeps the schema. Request body: `{"password": "<value>"}`.

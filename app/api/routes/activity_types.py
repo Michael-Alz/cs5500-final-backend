@@ -4,19 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_teacher
-from app.core.config import settings
 from app.db import get_db
 from app.models.activity_type import ActivityType
 from app.models.teacher import Teacher
 from app.schemas.activity_type import ActivityTypeCreate, ActivityTypeOut
 
 router = APIRouter()
-
-
-def _ensure_admin(current_teacher: Teacher) -> None:
-    admin_emails = set(settings.admin_emails or [])
-    if current_teacher.email not in admin_emails:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="ADMIN_ONLY")
 
 
 def _to_schema(activity_type: ActivityType) -> ActivityTypeOut:
@@ -33,10 +26,8 @@ def list_activity_types(db: Session = Depends(get_db)) -> List[ActivityTypeOut]:
 def create_activity_type(
     payload: ActivityTypeCreate,
     db: Session = Depends(get_db),
-    current_teacher: Teacher = Depends(get_current_teacher),
+    _current_teacher: Teacher = Depends(get_current_teacher),
 ) -> ActivityTypeOut:
-    _ensure_admin(current_teacher)
-
     existing = db.query(ActivityType).filter(ActivityType.type_name == payload.type_name).first()
     if existing:
         raise HTTPException(
