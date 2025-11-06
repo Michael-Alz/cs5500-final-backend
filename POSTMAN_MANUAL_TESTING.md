@@ -281,9 +281,12 @@ Headers: `Authorization: Bearer TEACHER_JWT_TOKEN`
 26. **POST** `http://localhost:8000/api/sessions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/sessions`  
     Body:
     ```json
-    { "require_survey": false }
+    {
+      "require_survey": false,
+      "mood_prompt": "How are you feeling heading into class?"
+    }
     ```
-    - Because the course requires rebaseline, expect `require_survey: true` in response.
+    - Because the course requires rebaseline, expect `require_survey: true` in response (the prompt is optional and falls back to the default when blank).
     - Save identifiers:
     ```js
     const data = pm.response.json();

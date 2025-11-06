@@ -149,12 +149,15 @@ def create_session(
 
     join_token = secrets.token_urlsafe(12)[:16]
 
+    raw_prompt = session_data.mood_prompt.strip() if session_data.mood_prompt else ""
+    mood_prompt = raw_prompt or "How are you feeling today?"
+
     session = ClassSession(
         course_id=course.id,
         survey_template_id=survey_template.id if survey_template else course.baseline_survey_id,
         require_survey=final_require_survey,
         mood_check_schema={
-            "prompt": "How are you feeling today?",
+            "prompt": mood_prompt,
             "options": list(course.mood_labels or []),
         },
         survey_snapshot_json=survey_snapshot,

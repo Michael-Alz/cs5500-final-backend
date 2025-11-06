@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.recommendations import RecommendedActivityOut
 
@@ -13,6 +13,10 @@ class MoodCheckSchema(BaseModel):
 
 class SessionCreate(BaseModel):
     require_survey: Optional[bool] = False
+    mood_prompt: Optional[str] = Field(
+        default=None,
+        description="Optional custom prompt to display for the mood check.",
+    )
 
 
 class SessionOut(BaseModel):

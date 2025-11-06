@@ -478,9 +478,12 @@ Unless noted, success responses use `200 OK`.
 -   Auth: teacher bearer token.
 -   Request body:
     ```json
-    { "require_survey": true }
+    {
+    	"require_survey": true,
+    	"mood_prompt": "How are you feeling heading into class?"
+    }
     ```
-    The flag is optional; the API also forces surveys when `course.requires_rebaseline` is true.
+    Both fields are optional. The API still enforces surveys when `course.requires_rebaseline` is true, and it falls back to `"How are you feeling today?"` when `mood_prompt` is missing or blank.
 -   Response 201:
     ```json
     {
@@ -488,7 +491,7 @@ Unless noted, success responses use `200 OK`.
     	"course_id": "ad6a32d2-6861-4fb2-9bf3-31f3ad8ac878",
     	"require_survey": true,
     	"mood_check_schema": {
-    		"prompt": "How are you feeling today?",
+    		"prompt": "How are you feeling heading into class?",
     		"options": ["energized", "curious", "tired"]
     	},
     	"survey_snapshot_json": {
