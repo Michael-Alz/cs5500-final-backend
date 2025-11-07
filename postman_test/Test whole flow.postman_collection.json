@@ -1,0 +1,562 @@
+{
+	"info": {
+		"_postman_id": "def9c4c8-8b48-4249-9718-99c17712eb24",
+		"name": "Test whole flow",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "49157391",
+		"_collection_link": "https://lively-robot-458087.postman.co/workspace/Team-Workspace~bf61dbb2-9ed3-41c1-8227-46daacae6c58/collection/49157391-def9c4c8-8b48-4249-9718-99c17712eb24?action=share&source=collection_link&creator=49157391"
+	},
+	"item": [
+		{
+			"name": "System",
+			"item": [
+				{
+					"name": "root",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{home_url}}",
+							"host": [
+								"{{home_url}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{home_url}}/health",
+							"host": [
+								"{{home_url}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "clean database (only for dev!!)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"password\": \"changeme\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{api_url}}/admin/reset",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"admin",
+								"reset"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "seed database",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\"password\": \"changeme\", \"seed_variant\": \"seed_deploy_test\" \n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{api_url}}/admin/seed",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"admin",
+								"seed"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Teacher Auth",
+			"item": [
+				{
+					"name": "Teacher Sign up",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate a unique teacher email before sending the signup request",
+									"// Get current timestamp (safe for uniqueness)",
+									"const timestamp = Date.now();",
+									"",
+									"// Build an email using prefix + timestamp",
+									"const randomEmail = `teacher_${timestamp}@example.com`;",
+									"",
+									"// Save the generated email to environment variable",
+									"pm.environment.set(\"teacher_email\", randomEmail);",
+									"",
+									"pm.environment.set(\"teacher_password\", \"Password123!\" )",
+									"",
+									"// Log for debugging",
+									"console.log(\"Generated teacher email:\", randomEmail);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Verify the signup API response and store teacher_id and email",
+									"pm.test(\"Signup returned teacher profile\", () => {",
+									"    pm.response.to.have.status(200);",
+									"    const data = pm.response.json();",
+									"",
+									"    pm.expect(data).to.have.property(\"id\");",
+									"    pm.expect(data).to.have.property(\"email\");",
+									"    pm.expect(data).to.have.property(\"full_name\");",
+									"",
+									"    // Save teacher_id and email to environment variables",
+									"    if (data.id) pm.environment.set(\"teacher_id\", data.id);",
+									"    if (data.email) pm.environment.set(\"teacher_email\", data.email);",
+									"});",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{teacher_email}}\",\n  \"password\": \"{{teacher_password}}\",\n  \"full_name\": \"Auto Teacher\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{api_url}}/teachers/signup",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"teachers",
+								"signup"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Teacher Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Verify login response and save JWT token for future requests",
+									"pm.test(\"Login returned access_token\", () => {",
+									"    // Ensure the status code is 200 OK",
+									"    pm.response.to.have.status(200);",
+									"",
+									"    // Parse the JSON response",
+									"    const data = pm.response.json();",
+									"",
+									"    // Check that the access_token exists and is a string",
+									"    pm.expect(data).to.have.property(\"access_token\");",
+									"    pm.expect(data.access_token).to.be.a(\"string\");",
+									"",
+									"    // Validate token type (should be 'bearer')",
+									"    pm.expect(data).to.have.property(\"token_type\");",
+									"    pm.expect(data.token_type).to.equal(\"bearer\");",
+									"",
+									"    // Save the JWT token to environment variable (teacher_jwt)",
+									"    // All future requests can use {{teacher_jwt}} for authorization",
+									"    pm.environment.set(\"jwt\", data.access_token);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{teacher_email}}\",\n  \"password\": \"{{teacher_password}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{api_url}}/teachers/login",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"teachers",
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Get Survey",
+			"item": [
+				{
+					"name": "Get Survey",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"survey list ok\", () => {",
+									"  pm.response.to.have.status(200);",
+									"  const data = pm.response.json();",
+									"  pm.expect(data.length).to.be.above(0);",
+									"  pm.environment.set(\"survey_id\", data[0].id);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/api/surveys",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"surveys"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Teacher Create Course",
+			"item": [
+				{
+					"name": "Create course",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"course created\", () => {",
+									"  pm.response.to.have.status(201);",
+									"  const courseId = pm.response.json().id;",
+									"  pm.environment.set(\"course_id\", courseId);   // 或 pm.collectionVariables.set",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Math 101 - Fall\",\n  \"baseline_survey_id\": \"{{survey_id}}\",\n  \"mood_labels\": [\"Ready\", \"Anxious\", \"Tired\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8000/api/courses",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"courses"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Create Session",
+			"item": [
+				{
+					"name": "Create session",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"session created\", () => {",
+									"  pm.response.to.have.status(201);",
+									"  const data = pm.response.json();",
+									"  pm.environment.set(\"join_token\", data.join_token);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"require_survey\": false,\n  \"mood_prompt\": \"Optional custom prompt\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8000/api/sessions/{{course_id}}/sessions",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"sessions",
+								"{{course_id}}",
+								"sessions"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Student Auth",
+			"item": [
+				{
+					"name": "Student sign up",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"learner1@example.com\",\n  \"password\": \"Pa55word!\",\n  \"full_name\": \"Learner One\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8000/api/students/signup",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"students",
+								"signup"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Student login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"student login ok\", () => {",
+									"  pm.response.to.have.status(200);",
+									"  const data = pm.response.json();",
+									"  pm.expect(data).to.have.property(\"access_token\");",
+									"  pm.expect(data.token_type).to.equal(\"bearer\");",
+									"  pm.environment.set(\"jwt\", data.access_token); // 或 collectionVariables",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"learner1@example.com\",\n  \"password\": \"Pa55word!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8000/api/students/login",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"students",
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "public join session get the survey (join token)",
+			"item": [
+				{
+					"name": "Get survey",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/api/public/join/{{join_token}}",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"public",
+								"join",
+								"{{join_token}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Survey Submission",
+			"item": [
+				{
+					"name": "Submit survey",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"mood\": \"Ready\",\n  \"answers\": {\n    \"q1\": \"option-a\",\n    \"q2\": \"option-d\"\n  },\n  \"is_guest\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8000/api/public/join/{{join_token}}/submit",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"api",
+								"public",
+								"join",
+								"{{join_token}}",
+								"submit"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
