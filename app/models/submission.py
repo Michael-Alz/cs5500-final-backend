@@ -1,6 +1,15 @@
 import uuid
 
-from sqlalchemy import JSON, CheckConstraint, Column, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -12,21 +21,24 @@ class Submission(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id = Column(String(36), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
+    course_id = Column(String(36), ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
     student_id = Column(
         String(36), ForeignKey("students.id", ondelete="CASCADE"), nullable=True
     )  # For authenticated students
     guest_name = Column(String(255), nullable=True)  # For guest users
     guest_id = Column(String(36), nullable=True)  # Unique guest identifier
-    answers_json = Column(JSON, nullable=False)
+    mood = Column(String(50), nullable=False)
+    answers_json = Column(JSON, nullable=True)
     total_scores = Column(JSON, nullable=True)  # Store calculated scores per category
+    is_baseline_update = Column(Boolean, nullable=False, default=False)
     status = Column(String(20), default="completed")  # "skipped" or "completed"
     created_at = Column(DateTime(timezone=True), default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
 
     # Relationships
     session = relationship("ClassSession", back_populates="submissions")
+    course = relationship("Course")
     student = relationship("Student", back_populates="submissions")
-
     # Constraints
     __table_args__ = (
         # Exactly one of student_id or (guest_name AND guest_id) must be non-null

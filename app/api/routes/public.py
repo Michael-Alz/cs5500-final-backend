@@ -1,268 +1,250 @@
 import uuid
-from typing import Any, Optional
+from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import and_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_student_optional
 from app.db import get_db
 from app.models.class_session import ClassSession
+from app.models.course import Course
 from app.models.student import Student
 from app.models.submission import Submission
-from app.models.survey_template import SurveyTemplate
-from app.schemas.public import PublicJoinOut, SubmissionIn, SubmissionOut
+from app.schemas.public import (
+    PublicJoinOut,
+    PublicSurveySnapshot,
+    SubmissionIn,
+    SubmissionOut,
+    SubmissionStatusOut,
+)
+from app.schemas.recommendations import RecommendedActivityOut
+from app.services.recommendations import (
+    build_recommended_activity_payload,
+    get_recommended_activity,
+)
+from app.services.submissions import (
+    get_current_profile,
+    update_course_student_profile,
+    upsert_submission,
+)
+from app.services.surveys import (
+    compute_total_scores,
+    determine_learning_style,
+    snapshot_to_public_payload,
+)
 
 router = APIRouter()
 
 
-def calculate_survey_scores(
-    session: ClassSession,
-    student_answers: dict[str, str],
-    db: Session,
-) -> dict[str, int]:
-    """Calculate total scores for each category based on student answers.
-
-    This function dynamically detects all categories from the survey template
-    and calculates scores accordingly, supporting any number of categories.
-    """
-    # Get the survey template for this session
-    survey_template = (
-        db.query(SurveyTemplate).filter(SurveyTemplate.id == session.survey_template_id).first()
+def _get_session_by_token(db: Session, join_token: str) -> ClassSession:
+    session = (
+        db.query(ClassSession)
+        .options(joinedload(ClassSession.course))
+        .filter(ClassSession.join_token == join_token)
+        .first()
     )
-
-    if not survey_template or not survey_template.questions_json:
-        return {}
-
-    # Dynamically extract all categories from the survey template
-    all_categories = set()
-    questions_data: list[dict[str, Any]] = survey_template.questions_json or []  # type: ignore[assignment]
-    assert isinstance(questions_data, list)
-    for question in questions_data:
-        for option in question.get("options", []):
-            scores = option.get("scores", {})
-            all_categories.update(scores.keys())
-
-    # Initialize score totals dynamically
-    total_scores = {category: 0 for category in all_categories}
-
-    # Process each question
-    for question in questions_data:
-        question_id = question.get("id")
-        if question_id not in student_answers:
-            continue
-
-        selected_answer = student_answers[question_id]
-
-        # Find the matching option and its scores
-        for option in question.get("options", []):
-            if option.get("label") == selected_answer:
-                scores = option.get("scores", {})
-                for category, score in scores.items():
-                    if category in total_scores:
-                        total_scores[category] += score
-                break
-
-    return total_scores
-
-
-@router.get("/join/{join_token}", response_model=PublicJoinOut)
-def get_session_by_token(join_token: str, db: Session = Depends(get_db)) -> PublicJoinOut:
-    """Get session information by join token."""
-    session = db.query(ClassSession).filter(ClassSession.join_token == join_token).first()
-
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SESSION_NOT_FOUND")
+    return session
 
+
+def _ensure_session_open(session: ClassSession) -> None:
     if session.closed_at is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="SESSION_CLOSED")
 
-    # Get survey template
-    template = (
-        db.query(SurveyTemplate).filter(SurveyTemplate.id == session.survey_template_id).first()
-    )
-    if not template:
+
+@router.get("/join/{join_token}", response_model=PublicJoinOut)
+def public_session_info(join_token: str, db: Session = Depends(get_db)) -> PublicJoinOut:
+    """Return public-facing session details for joining."""
+    session = _get_session_by_token(db, join_token)
+    _ensure_session_open(session)
+
+    course = session.course
+    if not course:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="SURVEY_TEMPLATE_NOT_FOUND"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="COURSE_NOT_FOUND"
         )
+
+    survey_payload = None
+    if session.require_survey:
+        survey_payload_dict = snapshot_to_public_payload(session.survey_snapshot_json)
+        if survey_payload_dict:
+            survey_payload = PublicSurveySnapshot.model_validate(survey_payload_dict)
+
+    mood_schema = session.mood_check_schema or {"prompt": "", "options": []}
 
     return PublicJoinOut(
         session_id=str(session.id),
-        course_title=str(session.course.title),
-        survey_schema=template.questions_json or [],
-        status="OPEN" if session.closed_at is None else "CLOSED",
+        course_id=str(course.id),
+        course_title=str(course.title),
+        require_survey=bool(session.require_survey),
+        mood_check_schema=mood_schema,
+        survey=survey_payload,
+        status="OPEN",
     )
 
 
+def _validate_mood(course: Course, mood: str) -> None:
+    if course.mood_labels and mood not in course.mood_labels:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="INVALID_MOOD_LABEL",
+        )
+
+
+def _generate_guest_id(existing_guest_id: Optional[str]) -> str:
+    return existing_guest_id or str(uuid.uuid4())
+
+
+def _build_recommended_activity(
+    db: Session,
+    course_id: str,
+    mood: str,
+    learning_style: Optional[str],
+) -> RecommendedActivityOut:
+    match_type, activity = get_recommended_activity(db, course_id, mood, learning_style)
+    payload = build_recommended_activity_payload(match_type, mood, learning_style, activity)
+    return RecommendedActivityOut.model_validate(payload)
+
+
 @router.post("/join/{join_token}/submit", response_model=SubmissionOut)
-def submit_survey(
+def public_submit(
     join_token: str,
     submission_data: SubmissionIn,
     db: Session = Depends(get_db),
     current_student: Optional[Student] = Depends(get_current_student_optional),
 ) -> SubmissionOut:
-    """Submit a survey response."""
+    """Accept mood and optional survey responses for a public session."""
+    session = _get_session_by_token(db, join_token)
+    _ensure_session_open(session)
 
-    # Find session by token
-    session = db.query(ClassSession).filter(ClassSession.join_token == join_token).first()
+    course = session.course
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="COURSE_NOT_FOUND"
+        )
 
-    if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SESSION_NOT_FOUND")
+    _validate_mood(course, submission_data.mood)
 
-    if session.closed_at is not None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="SESSION_CLOSED")
+    is_guest_mode = submission_data.is_guest or current_student is None
 
-    # Determine if this is a guest or student submission
-    is_guest = submission_data.is_guest or not current_student
-
-    # Validate submission data based on mode
-    if is_guest:
-        if not submission_data.student_name or not submission_data.student_name.strip():
+    if is_guest_mode:
+        guest_name = (submission_data.student_name or "").strip()
+        if not guest_name:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="GUEST_NAME_REQUIRED"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="GUEST_NAME_REQUIRED",
             )
+        guest_id = _generate_guest_id(submission_data.guest_id)
     else:
-        # For authenticated students, ignore the student_name field
-        pass
+        guest_name = None
+        guest_id = None
 
-    # Determine submission status
-    submission_status = "skipped" if not submission_data.answers else "completed"
-
-    # Calculate scores only if not skipped
-    total_scores = {}
-    if submission_status == "completed":
-        total_scores = calculate_survey_scores(session, submission_data.answers, db)
-
-    # Check for existing submission
-    existing_submission = None
-    guest_id = None
-
-    if is_guest:
-        # For guest submissions, we need to check if there's a guest_id in the request
-        # If not, we'll generate a new one for new submissions
-        guest_id = getattr(submission_data, "guest_id", None)
-
-        if guest_id:
-            # Look for existing submission by guest_id
-            existing_submission = (
-                db.query(Submission)
-                .filter(
-                    and_(
-                        Submission.session_id == session.id,
-                        Submission.guest_id == guest_id,
-                    )
-                )
-                .first()
-            )
-        else:
-            # For new guest submissions, generate a guest_id
-            guest_id = str(uuid.uuid4())
-    else:
-        existing_submission = (
-            db.query(Submission)
-            .filter(
-                and_(
-                    Submission.session_id == session.id,
-                    Submission.student_id == current_student.id,
-                )
-            )
-            .first()
+    if session.require_survey and not submission_data.answers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ANSWERS_REQUIRED",
         )
 
-    if existing_submission:
-        # Update existing submission
-        existing_submission.answers_json = submission_data.answers
-        existing_submission.total_scores = total_scores
-        existing_submission.status = submission_status
-        db.commit()
-        db.refresh(existing_submission)
+    answers: Optional[Dict[str, str]] = submission_data.answers or None
+    total_scores: Optional[Dict[str, int]] = None
+    learning_style: Optional[str] = None
+    is_baseline_update = False
 
-        return SubmissionOut(
-            ok=True,
-            submission_id=str(existing_submission.id),
-            guest_id=(
-                str(existing_submission.guest_id)
-                if is_guest and existing_submission.guest_id
-                else None
-            ),
-            status=submission_status,
-        )
-    else:
-        # Create new submission
-        submission = Submission(
-            session_id=session.id,
-            student_id=current_student.id if not is_guest and current_student else None,
-            guest_name=submission_data.student_name if is_guest else None,
-            guest_id=guest_id if is_guest else None,
-            answers_json=submission_data.answers,
+    if answers and session.require_survey:
+        total_scores = compute_total_scores(session.survey_snapshot_json or {}, answers)
+        learning_style = determine_learning_style(total_scores)
+        is_baseline_update = learning_style is not None
+
+    submission = upsert_submission(
+        db=db,
+        session=session,
+        course=course,
+        mood=submission_data.mood,
+        answers=answers,
+        total_scores=total_scores,
+        is_baseline_update=is_baseline_update,
+        student=current_student if not is_guest_mode else None,
+        guest_id=guest_id if is_guest_mode else None,
+        guest_name=guest_name if is_guest_mode else None,
+    )
+    db.flush()
+
+    participant_learning_style = learning_style
+
+    if is_baseline_update and learning_style and total_scores:
+        update_course_student_profile(
+            db=db,
+            course=course,
+            submission=submission,
+            learning_style=learning_style,
             total_scores=total_scores,
-            status=submission_status,
+            student=current_student if not is_guest_mode else None,
+            guest_id=guest_id if is_guest_mode else None,
         )
-
-        db.add(submission)
-        db.commit()
-        db.refresh(submission)
-
-        return SubmissionOut(
-            ok=True,
-            submission_id=str(submission.id),
-            guest_id=str(submission.guest_id) if is_guest and submission.guest_id else None,
-            status=submission_status,
+    else:
+        # Look up existing profile if no new baseline captured
+        profile = get_current_profile(
+            db=db,
+            course_id=course.id,
+            student_id=current_student.id if current_student and not is_guest_mode else None,
+            guest_id=guest_id if is_guest_mode else None,
         )
+        if profile:
+            participant_learning_style = profile.profile_category
+
+    db.commit()
+    db.refresh(submission)
+
+    recommended_activity = _build_recommended_activity(
+        db, course.id, submission_data.mood, participant_learning_style
+    )
+
+    # Determine message based on scenario
+    if is_baseline_update:
+        message = "Thanks! Your style for this course has been updated."
+    elif participant_learning_style is None:
+        # Scenario B2: No profile yet, only mood recorded
+        message = "Thanks! Mood recorded. We'll learn your style next time we run the survey."
+    else:
+        # Scenario B1: Has existing profile, just recording mood
+        message = "Thanks for checking in!"
+
+    return SubmissionOut(
+        submission_id=str(submission.id),
+        student_id=str(submission.student_id) if submission.student_id else None,
+        guest_id=str(submission.guest_id) if submission.guest_id else None,
+        require_survey=bool(session.require_survey),
+        is_baseline_update=is_baseline_update,
+        mood=submission_data.mood,
+        learning_style=participant_learning_style,
+        total_scores=total_scores,
+        recommended_activity=recommended_activity,
+        message=message,
+    )
 
 
-@router.get("/join/{join_token}/submission")
+@router.get("/join/{join_token}/submission", response_model=SubmissionStatusOut)
 def get_submission_status(
     join_token: str,
     guest_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_student: Optional[Student] = Depends(get_current_student_optional),
-) -> dict[str, Any]:
-    """Get submission status for a session (for checking if already submitted)."""
-    # Find session by token
-    session = db.query(ClassSession).filter(ClassSession.join_token == join_token).first()
+) -> SubmissionStatusOut:
+    """Check if a participant has already submitted for this session."""
+    session = _get_session_by_token(db, join_token)
+    _ensure_session_open(session)
 
-    if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SESSION_NOT_FOUND")
+    # Check if submission exists for guest or student
+    query = db.query(Submission).filter(Submission.session_id == session.id)
 
-    # Determine if this is a guest or student request
-    is_guest = not current_student
-
-    if is_guest:
-        if not guest_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="GUEST_ID_REQUIRED")
-
-        submission = (
-            db.query(Submission)
-            .filter(
-                and_(
-                    Submission.session_id == session.id,
-                    Submission.guest_id == guest_id,
-                )
-            )
-            .first()
-        )
+    if current_student:
+        query = query.filter(Submission.student_id == current_student.id)
+    elif guest_id:
+        query = query.filter(Submission.guest_id == guest_id)
     else:
-        if not current_student:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="STUDENT_REQUIRED")
-        submission = (
-            db.query(Submission)
-            .filter(
-                and_(
-                    Submission.session_id == session.id,
-                    Submission.student_id == current_student.id,
-                )
-            )
-            .first()
-        )
+        # No identifier provided
+        return SubmissionStatusOut(submitted=False)
 
-    if not submission:
-        return {"submitted": False}
-
-    return {
-        "submitted": True,
-        "submission_id": str(submission.id),
-        "status": str(submission.status),
-        "created_at": submission.created_at,
-        "updated_at": submission.updated_at,
-    }
+    submission = query.first()
+    return SubmissionStatusOut(submitted=submission is not None)

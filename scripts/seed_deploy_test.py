@@ -1,112 +1,40 @@
 #!/usr/bin/env python3
 """
-Seed the database with sample data that matches the latest product spec.
+Seed the database with the minimal deploy-test dataset.
 
-This script will:
-1. Wipe existing demo data (teachers, students, surveys, courses, sessions, etc.).
-2. Insert one teacher and two students.
-3. Create a baseline learning-style survey.
-4. Create one course linked to the survey (with mood labels + learning style categories).
-5. Add activity types, activities, and course recommendations.
-6. Spin up two sessions (one requires the survey, one mood-only).
-7. Insert submissions (student + guest) and maintain course_student_profiles.
+This script clears existing demo data and then loads ONLY:
+  • the two legacy survey templates
+  • the default activity types
+  • the default activities linked to those types
 
-Run with: ``uv run python scripts/seed.py`` (after applying migrations).
+All other tables remain empty (aside from schema) after seeding.
 """
+
+from __future__ import annotations
 
 import sys
 import uuid
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 # Allow importing the app package when running as a script.
 project_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from app.core.config import settings  # noqa: E402
-from app.core.security import hash_password  # noqa: E402
-from app.models import (  # noqa: E402
-    Activity,
-    ActivityType,
-    ClassSession,
-    Course,
-    CourseRecommendation,
-    CourseStudentProfile,
-    Student,
-    Submission,
-    SurveyTemplate,
-    Teacher,
-)
-from app.services.surveys import (  # noqa: E402
-    build_survey_snapshot,
-    compute_total_scores,
-    determine_learning_style,
-    extract_learning_style_categories,
-)
+from scripts import seed as base_seed  # noqa: E402
 
 SQLALCHEMY_DATABASE_URL = settings.database_url
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def reset_database(db: Session) -> None:
-    """Remove existing demo data in a FK-safe order."""
-    print("🧽 Clearing existing seed data…")
-    for model in (
-        CourseStudentProfile,
-        CourseRecommendation,
-        Submission,
-        ClassSession,
-        Activity,
-        ActivityType,
-        Course,
-        SurveyTemplate,
-        Student,
-        Teacher,
-    ):
-        db.query(model).delete()
-    db.commit()
-    print("✅ Existing data cleared.")
-
-
-def create_teacher(db: Session) -> Teacher:
-    teacher = Teacher(
-        id=str(uuid.uuid4()),
-        email="teacher1@example.com",
-        password_hash=hash_password("Passw0rd!"),
-        full_name="Dr. Riley Smith",
-    )
-    db.add(teacher)
-    db.flush()
-    print(f"👩‍🏫 Teacher created: {teacher.email}")
-    return teacher
-
-
-def create_students(db: Session) -> List[Student]:
-    students: List[Student] = []
-    sample_students = [
-        ("student1@example.com", "Alex Johnson"),
-        ("student2@example.com", "Maya Chen"),
-    ]
-    for email, name in sample_students:
-        student = Student(
-            id=str(uuid.uuid4()),
-            email=email,
-            password_hash=hash_password("Passw0rd!"),
-            full_name=name,
-        )
-        db.add(student)
-        db.flush()
-        students.append(student)
-        print(f"👨‍🎓 Student created: {email}")
-    return students
-
-
-def create_surveys(db: Session, teacher: Teacher) -> Tuple[SurveyTemplate, List[SurveyTemplate]]:
-    """Create the original two surveys from the legacy seed plus return the baseline."""
+def seed_surveys(db: Session) -> None:
+    """Insert the two legacy survey templates (Critter Quest then Learning Buddy)."""
     survey_1_questions: List[dict] = [
         {
             "id": "q1",
@@ -878,54 +806,38 @@ def create_surveys(db: Session, teacher: Teacher) -> Tuple[SurveyTemplate, List[
         },
     ]
 
-    survey_1 = SurveyTemplate(
-        id=str(uuid.uuid4()),
-        title="Learning Buddy: Style Check",
-        questions_json=survey_1_questions,
-        creator_name=teacher.full_name or "Unknown Teacher",
-        creator_id=teacher.id,
-        creator_email=teacher.email,
-    )
-    db.add(survey_1)
+    survey_specs = [
+        {
+            "title": "Critter Quest: Learning Adventure",
+            "questions": survey_2_questions,
+        },
+        {
+            "title": "Learning Buddy: Style Check",
+            "questions": survey_1_questions,
+        },
+    ]
 
-    survey_2 = SurveyTemplate(
-        id=str(uuid.uuid4()),
-        title="Critter Quest: Learning Adventure",
-        questions_json=survey_2_questions,
-        creator_name=teacher.full_name or "Unknown Teacher",
-        creator_id=teacher.id,
-        creator_email=teacher.email,
-    )
-    db.add(survey_2)
-    db.flush()
-
-    print("📝 Legacy surveys created (Learning Buddy + Critter Quest).")
-    return survey_1, [survey_2]
-
-
-def create_course(db: Session, teacher: Teacher, baseline: SurveyTemplate) -> Course:
-    categories = extract_learning_style_categories(baseline.questions_json or [])
-    mood_labels = ["energized", "steady", "worried"]
-    course = Course(
-        id=str(uuid.uuid4()),
-        title="CS101 – Intro Class",
-        teacher_id=teacher.id,
-        baseline_survey_id=baseline.id,
-        learning_style_categories=categories,
-        mood_labels=mood_labels,
-        requires_rebaseline=True,
-    )
-    db.add(course)
-    db.flush()
-    print(f"📘 Course created: {course.title}")
-    return course
+    existing = {row.title: row for row in db.query(base_seed.SurveyTemplate).all()}
+    for spec in survey_specs:
+        if spec["title"] in existing:
+            print(f"ℹ️  Survey already exists, skipping: {spec['title']}")
+            continue
+        survey = base_seed.SurveyTemplate(
+            id=str(uuid.uuid4()),
+            title=spec["title"],
+            questions_json=spec["questions"],
+            creator_name="System Seed",
+            creator_id=None,
+            creator_email="seed@system.local",
+        )
+        db.add(survey)
+        db.flush()
+        print(f"📝 Survey added: {survey.title}")
+    db.commit()
 
 
-def seed_default_activity_types_and_activities(
-    db: Session, teacher: Teacher | None = None
-) -> Dict[str, Activity]:
-    """Ensure default activity types and sample activities exist."""
-
+def seed_activity_types_and_activities(db: Session) -> Dict[str, base_seed.Activity]:
+    """Insert default activity types and associated activities."""
     activity_type_seed_data = [
         {
             "type_name": "in-class-task",
@@ -1114,43 +1026,36 @@ def seed_default_activity_types_and_activities(
         },
     ]
 
-    existing_types = {row.type_name: row for row in db.query(ActivityType).all()}
+    existing_types = {row.type_name: row for row in db.query(base_seed.ActivityType).all()}
     for entry in activity_type_seed_data:
         if entry["type_name"] in existing_types:
             print(f"ℹ️  Activity type already exists, skipping: {entry['type_name']}")
             continue
-        db.add(ActivityType(**entry))
+        db.add(base_seed.ActivityType(**entry))
     db.commit()
 
-    seed_creator = (
-        {
-            "creator_id": teacher.id,
-            "creator_name": teacher.full_name or teacher.email,
-            "creator_email": teacher.email,
-        }
-        if teacher
-        else {
-            "creator_id": None,
-            "creator_name": "System Seed",
-            "creator_email": "seed@system.local",
-        }
-    )
+    seed_creator = {
+        "creator_id": None,
+        "creator_name": "System Seed",
+        "creator_email": "seed@system.local",
+    }
 
-    existing_activities = {row.name: row for row in db.query(Activity).all()}
-    created: Dict[str, Activity] = {}
+    existing_activities = {row.name: row for row in db.query(base_seed.Activity).all()}
+    created: Dict[str, base_seed.Activity] = {}
     for entry in activity_seed_data:
         payload = {**entry, **seed_creator}
         if payload["name"] in existing_activities:
             print(f"ℹ️  Activity already exists, skipping: {payload['name']}")
             created[payload["name"]] = existing_activities[payload["name"]]
             continue
-        activity = Activity(**payload)
+        activity = base_seed.Activity(**payload)
         db.add(activity)
         db.flush()
         created[payload["name"]] = activity
 
     db.commit()
-    print("🎯 Default activity types & example activities ensured.")
+    print("🎯 Default activity types & activities seeded.")
+
     system_default_name = "Calm Reset Routine"
     system_default = created.get(system_default_name) or existing_activities.get(
         system_default_name
@@ -1162,194 +1067,19 @@ def seed_default_activity_types_and_activities(
             system_default.tags = tags
             db.add(system_default)
             db.commit()
+            print("⭐ Marked Calm Reset Routine as system default activity.")
     return created
-
-
-def create_recommendations(
-    db: Session,
-    course: Course,
-    activities: Dict[str, Activity],
-) -> None:
-    """Map learning styles + moods to activities."""
-    name_lookup = activities
-    recommendation_specs = [
-        ("Active learner", None, "Partner Teach-Back"),
-        ("Structured learner", None, "Binary Search Practice Sheet"),
-        ("Passive learner", None, "Calm Reset Routine"),
-        (None, "worried", "Calm Reset Routine"),
-        (None, "energized", "Binary Search Visualization"),
-        (None, "steady", "Intro to Hash Tables Article"),
-    ]
-
-    existing_map = {
-        (rec.learning_style, rec.mood): rec
-        for rec in db.query(CourseRecommendation).filter_by(course_id=course.id).all()
-    }
-
-    recommendations: List[CourseRecommendation] = []
-    for learning_style, mood, activity_name in recommendation_specs:
-        activity = name_lookup.get(activity_name)
-        if not activity:
-            print(
-                f"⚠️  Skipping recommendation for '{activity_name}' because activity was not seeded."
-            )
-            continue
-        key = (learning_style, mood)
-        if key in existing_map:
-            print(f"ℹ️  Recommendation already exists for course {course.title}: {key}, skipping.")
-            continue
-        recommendations.append(
-            CourseRecommendation(
-                course_id=course.id,
-                learning_style=learning_style,
-                mood=mood,
-                activity_id=activity.id,
-            )
-        )
-    for rec in recommendations:
-        db.add(rec)
-    db.flush()
-    print("💡 Course recommendations configured.")
-
-
-def create_sessions(
-    db: Session,
-    course: Course,
-    baseline: SurveyTemplate,
-) -> List[ClassSession]:
-    snapshot = build_survey_snapshot(baseline)
-    mood_schema = {"prompt": "How are you feeling today?", "options": course.mood_labels or []}
-
-    rebaseline_session = ClassSession(
-        id=str(uuid.uuid4()),
-        course_id=course.id,
-        survey_template_id=baseline.id,
-        require_survey=True,
-        mood_check_schema=mood_schema,
-        survey_snapshot_json=snapshot,
-        join_token=uuid.uuid4().hex[:12],
-    )
-
-    followup_session = ClassSession(
-        id=str(uuid.uuid4()),
-        course_id=course.id,
-        survey_template_id=baseline.id,
-        require_survey=False,
-        mood_check_schema=mood_schema,
-        survey_snapshot_json=None,
-        join_token=uuid.uuid4().hex[:12],
-    )
-
-    db.add_all([rebaseline_session, followup_session])
-    course.requires_rebaseline = False
-    db.flush()
-    print("🗓️ Sessions created (baseline + follow-up).")
-    return [rebaseline_session, followup_session]
-
-
-def create_submissions_and_profiles(
-    db: Session,
-    course: Course,
-    sessions: List[ClassSession],
-    students: List[Student],
-) -> None:
-    baseline_session, followup_session = sessions
-    student = students[0]
-
-    # Baseline submission (requires survey).
-    baseline_answers = {
-        "q1": "5 — Yes, a lot",
-        "q2": "5 — Yes, a lot",
-        "q3": "3 — Not sure",
-        "q4": "3 — Not sure",
-        "q5": "2 — Low",
-        "q6": "2 — A little worried",
-        "q7": "A —  Move break",
-        "q8": "A — Try it with hands/body",
-        "q9": "A — Quick game / movement challenge",
-    }
-    totals = compute_total_scores(baseline_session.survey_snapshot_json or {}, baseline_answers)
-    learning_style = determine_learning_style(totals) or "Active learner"
-
-    baseline_submission = Submission(
-        id=str(uuid.uuid4()),
-        session_id=baseline_session.id,
-        course_id=course.id,
-        student_id=student.id,
-        mood="energized",
-        answers_json=baseline_answers,
-        total_scores=totals,
-        is_baseline_update=True,
-        status="completed",
-    )
-    db.add(baseline_submission)
-    db.flush()
-
-    profile = CourseStudentProfile(
-        id=str(uuid.uuid4()),
-        course_id=course.id,
-        student_id=student.id,
-        latest_submission_id=baseline_submission.id,
-        profile_category=learning_style,
-        profile_scores_json=totals,
-        is_current=True,
-    )
-    db.add(profile)
-
-    # Student 2 mood-only submission (no survey).
-    followup_submission = Submission(
-        id=str(uuid.uuid4()),
-        session_id=followup_session.id,
-        course_id=course.id,
-        student_id=students[1].id,
-        mood="steady",
-        answers_json=None,
-        total_scores=None,
-        is_baseline_update=False,
-        status="completed",
-    )
-    db.add(followup_submission)
-
-    # Guest submission.
-    guest_submission = Submission(
-        id=str(uuid.uuid4()),
-        session_id=followup_session.id,
-        course_id=course.id,
-        guest_name="Jordan (Guest)",
-        guest_id=str(uuid.uuid4()),
-        mood="worried",
-        answers_json=None,
-        total_scores=None,
-        is_baseline_update=False,
-        status="completed",
-    )
-    db.add(guest_submission)
-    db.flush()
-    print("📝 Submissions + profiles recorded.")
 
 
 def seed_data() -> None:
     db = SessionLocal()
     try:
-        print("🌱 Starting seed process…")
-        reset_database(db)
-
-        teacher = create_teacher(db)
-        students = create_students(db)
-        baseline_survey, extra_surveys = create_surveys(db, teacher)
-        course = create_course(db, teacher, baseline_survey)
-        activities = seed_default_activity_types_and_activities(db, teacher)
-        create_recommendations(db, course, activities)
-        sessions = create_sessions(db, course, baseline_survey)
-        create_submissions_and_profiles(db, course, sessions, students)
-
-        if extra_surveys:
-            print(
-                f"📚 Additional survey templates added: {', '.join(s.title for s in extra_surveys)}"
-            )
-
+        print("🌱 Starting deploy-test seed…")
+        base_seed.reset_database(db)
+        seed_surveys(db)
+        seed_activity_types_and_activities(db)
         db.commit()
-        print("🎉 Seed data inserted successfully!")
+        print("🎉 Deploy-test dataset loaded successfully!")
     except Exception as exc:  # pragma: no cover - debugging aid
         db.rollback()
         print(f"❌ Seed failed: {exc}")

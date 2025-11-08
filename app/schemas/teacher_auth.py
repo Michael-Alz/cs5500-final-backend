@@ -1,23 +1,23 @@
 from pydantic import BaseModel, EmailStr
 
 
-class AuthSignupIn(BaseModel):
+class TeacherSignupIn(BaseModel):
     email: EmailStr
     password: str
     full_name: str
 
 
-class AuthSignupOut(BaseModel):
+class TeacherSignupOut(BaseModel):
     id: str
     email: str
     full_name: str
 
 
-class AuthLoginIn(BaseModel):
+class TeacherLoginIn(BaseModel):
     email: EmailStr
     password: str
 
 
-class AuthLoginOut(BaseModel):
+class TeacherLoginOut(BaseModel):
     access_token: str
     token_type: str = "bearer"

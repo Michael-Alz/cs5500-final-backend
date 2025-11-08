@@ -4,16 +4,18 @@ This directory contains utility scripts for database management and development 
 
 ## Available Scripts
 
-### `clean_db.py` - Database Cleanup Script
+### `clean_db.py` – database cleanup
 
-A comprehensive script to clean all data from your database while preserving the schema.
+Truncates every application table (`Base.metadata`) while keeping the schema intact. Designed for
+repeatable local resets.
 
-#### Features
-- **Safe Cleanup**: Removes all data while preserving database structure
-- **Foreign Key Aware**: Clears tables in the correct order to respect constraints
-- **Confirmation Prompt**: Asks for confirmation before deleting data
-- **Status Checking**: Can check database state without cleaning
-- **Force Mode**: Skip confirmation for automated scripts
+#### Highlights
+
+- **Metadata-driven**: Builds the truncate statement dynamically so new tables are included
+  automatically (no manual list).
+- **Identity reset**: Uses `TRUNCATE ... RESTART IDENTITY CASCADE` to reset primary keys.
+- **Confirmation prompt**: Prevents accidental wipes (use `--force` for automation).
+- **Status mode**: `--check` returns record counts without modifying the DB.
 
 #### Usage
 
@@ -32,17 +34,12 @@ make db-clean-force
 ```
 
 #### What it does
-1. **Checks database state** - Shows record counts for all tables
-2. **Asks for confirmation** - Prevents accidental data loss
-3. **Clears data in order** - Respects foreign key constraints:
-   - `submissions` (has foreign keys to sessions and students)
-   - `sessions` (has foreign keys to courses and surveys)
-   - `courses` (has foreign keys to teachers)
-   - `students` (independent table)
-   - `teachers` (independent table)
-   - `surveys` (independent table)
-4. **Provides summary** - Shows how many records were cleared
-5. **Suggests next steps** - Recommends re-seeding if needed
+1. Prints a summary of all tracked tables and their row counts (via `--check`).
+2. Prompts for confirmation (unless `--force`).
+3. Executes a single `TRUNCATE ... RESTART IDENTITY CASCADE` statement covering every application
+   table except `alembic_version`.
+4. Prints per-table counts removed and the total number of affected rows.
+5. Suggests re-seeding next steps.
 
 #### Example Output
 
@@ -77,25 +74,46 @@ Total records cleared: 11
   - Or start fresh with your own data
 ```
 
-### `seed.py` - Database Seeding Script
+### `seed.py` – database seeding
 
-Populates the database with comprehensive test data including:
-- Teacher and student accounts
-- Survey templates
-- Active sessions with join tokens
-- Sample submissions (both guest and authenticated)
+Populates the database with end-to-end sample data:
+
+- Teacher + student accounts with hashed passwords.
+- Two detailed survey templates (Learning Buddy & Critter Quest).
+- A course, sessions (one requiring rebaseline), submissions, and participant profiles.
+- Default activity types and example activities usable across courses.
+- Course recommendations that exercise the fallback chain.
 
 #### Usage
 
 ```bash
 # Seed database with sample data
 uv run python scripts/seed.py
-make db-seed
+make db-seed            # automatically runs `make db-clean` first
 ```
 
-### `check_db_state.py` - Database State Checker
+### `seed_deploy_test.py` – minimal deploy-test dataset
 
-Simple script to check if the database is properly set up and contains data.
+Clears existing data and inserts only the shared catalog assets:
+
+- the two legacy survey templates (Critter Quest + Learning Buddy)
+- default activity types
+- default activities for those types
+
+No teachers, courses, sessions, or recommendations are created.
+
+#### Usage
+
+```bash
+# Seed database with catalog-only content
+uv run python scripts/seed_deploy_test.py
+make db-seed seed_deploy_test.py
+```
+
+### `check_db_state.py` – schema sanity check
+
+Confirms that every ORM-managed table exists and shows row counts. Useful after migrations or a
+cleanup.
 
 #### Usage
 
@@ -111,12 +129,12 @@ All scripts are integrated with the Makefile for easy access:
 
 ```bash
 # Database management
-make db-status       # Show database record counts
-make db-clean        # Clean all data (with confirmation)
-make db-clean-force  # Force clean all data (no confirmation)
-make db-seed         # Seed database with sample data
-make db-check        # Check database state
-make db-migrate      # Run database migrations
+make db-status                 # Show database record counts
+make db-clean                  # Clean all data (with confirmation)
+make db-clean-force            # Force clean all data (no confirmation)
+make db-seed [script.py]       # Clean + seed (default uses scripts/seed.py)
+make db-check                  # Check database state
+make db-migrate                # Run database migrations
 ```
 
 ## Safety Features
@@ -125,9 +143,9 @@ make db-migrate      # Run database migrations
 - The clean script always asks for confirmation before deleting data
 - Use `--force` flag only in automated scripts where confirmation isn't possible
 
-### Foreign Key Awareness
-- Tables are cleared in the correct order to respect foreign key constraints
-- No orphaned records or constraint violations
+### Cascade-safe
+- Uses `TRUNCATE ... CASCADE` so dependent rows are removed automatically
+- Prevents orphaned records or constraint violations even as the schema grows
 
 ### Error Handling
 - Graceful error handling with rollback on failures
@@ -148,8 +166,10 @@ make db-status
 # 2. Clean if needed
 make db-clean
 
-# 3. Re-seed with fresh data
-make db-seed
+# 3. Re-seed with fresh data (auto-cleans first)
+make db-seed              # default seed data
+# or keep only surveys + activity catalog
+make db-seed seed_deploy_test.py
 
 # 4. Test your changes
 make test
@@ -160,7 +180,9 @@ make test
 ```bash
 # Clean slate for testing
 make db-clean-force
-make db-seed
+make db-seed              # cleans + seeds automatically
+# or seed only catalog fixtures
+make db-seed seed_deploy_test.py
 
 # Test your feature
 # ... your testing ...

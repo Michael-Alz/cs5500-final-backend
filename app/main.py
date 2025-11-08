@@ -1,7 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, courses, public, sessions, student_auth, surveys
+from app.api.routes import (
+    activities,
+    activity_types,
+    admin,
+    courses,
+    public,
+    sessions,
+    student_auth,
+    surveys,
+    teacher_auth,
+)
 from app.core.config import settings
 
 # Create FastAPI app instance
@@ -25,8 +35,11 @@ app.add_middleware(
 # ---------------------------------------------------------
 # 🧩 Register routers
 # ---------------------------------------------------------
-app.include_router(auth.router, prefix="/api/auth", tags=["Teacher Authentication"])
+app.include_router(teacher_auth.router, prefix="/api/teachers", tags=["Teacher Authentication"])
+app.include_router(admin.router, prefix="/api/admin", tags=["Admin Tools"])
 app.include_router(student_auth.router, prefix="/api/students", tags=["Student Authentication"])
+app.include_router(activity_types.router, prefix="/api/activity-types", tags=["Activity Types"])
+app.include_router(activities.router, prefix="/api/activities", tags=["Activities"])
 app.include_router(courses.router, prefix="/api/courses", tags=["Courses"])
 app.include_router(surveys.router, prefix="/api/surveys", tags=["Surveys"])
 app.include_router(sessions.router, prefix="/api/sessions", tags=["Sessions"])

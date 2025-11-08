@@ -1,104 +1,101 @@
-# Test Suite
+# Test Suite Overview
 
-This directory contains a simplified and combined test suite for the 5500 Backend API.
+This directory hosts both integration tests (`test_api.py`) and focused unit tests for
+service helpers (`test_services.py`). Together they exercise the entire backend stack:
 
-## Test Structure
+- Authentication for teachers & students (signup, login, profiles, auth guards).
+- Course lifecycle (creation, baseline swaps, recommendations, dashboards).
+- Activity library & activity-type registry (admin-only creation, CRUD, validation).
+- Session/public flows (QR join, guest + student submissions, baseline enforcement,
+  recommendation feedback, dashboards, closing sessions).
+- Service helpers for survey scoring, recommendation fallback logic, and submission/profile
+  management.
+
+## Test Modules
 
 ### `test_api.py`
-A comprehensive test file that covers all API functionality:
 
-- **Health Checks** (no database required)
-- **Authentication Protection** (no database required)  
-- **Input Validation** (no database required)
-- **Error Handling** (no database required)
-- **Teacher Authentication** (requires database)
-- **Student Authentication** (requires database)
-- **Course Management** (requires database)
-- **Session Management** (requires database)
-- **Public Endpoints** (requires database)
-- **Comprehensive Flow** (requires database)
+End-to-end tests using FastAPI's `TestClient` to hit real endpoints.
 
-## Running Tests
+- **Smoke tests**: health endpoints, missing-auth guards, validation errors.
+- **Auth flows**: teacher & student signup/login, protected resource access, bad credentials.
+- **Course lifecycle**: baseline survey creation, course creation & patching, activity type +
+  activity CRUD (with permission checks), recommendation updates & validation.
+- **Session/public flow**: forced rebaseline, public join responses, error handling for missing
+  payload data, guest + authenticated submissions, recommendation payload verification,
+  submission upsert behaviour, dashboard aggregation, session closure handling.
 
-### Quick Tests (No Database Required)
+All DB-dependent tests are marked with `@pytest.mark.database`.
+
+### `test_services.py`
+
+Unit tests for pure service helpers using an in-memory SQLite database:
+
+- Survey utilities (`compute_total_scores`, `determine_learning_style`, etc.).
+- Recommendation fallback precedence (`style+mood`, style-default, mood-default, random, none).
+- Recommendation response payload formatting.
+- Submission upsert behaviour, profile toggling, and helper lookups.
+
+## Running the Tests
+
+### Without Database
+
+Only the smoke tests run without a database:
+
 ```bash
-# Run only tests that don't require a database
-uv run python -m pytest tests/test_api.py::test_health_endpoints tests/test_api.py::test_authentication_protection tests/test_api.py::test_input_validation tests/test_api.py::test_error_handling -v
-
-# Or run all tests (will skip database-dependent tests if DB not available)
-uv run python -m pytest tests/ -v
+uv run pytest tests/test_api.py::test_health_and_auth_guards -v
 ```
 
-### Full Tests (Database Required)
+### With Database (recommended)
+
+1. Start Postgres (and optionally the backend stack):
+
+   ```bash
+   make dev  # or docker compose -f docker-compose.dev.yml up -d database
+   ```
+
+2. Apply migrations & seed data (if needed):
+
+   ```bash
+   make db-migrate
+   make db-seed
+   ```
+
+3. Run the full suite:
+
+   ```bash
+   make test           # runs every test
+   make test-api       # integration tests only
+   make test-coverage  # coverage report
+   ```
+
+Database-dependent tests are automatically skipped if they cannot connect to the DB; otherwise
+they expect a clean schema.
+
+### Targeted Runs
+
+Run just the service/unit tests:
+
 ```bash
-# 1. Start the database
-docker-compose up -d database
-
-# 2. Run migrations
-make db-migrate
-
-# 3. Seed data
-uv run python scripts/seed.py
-
-# 4. Run all tests
-uv run python -m pytest tests/ -v
-
-# 5. Run only database tests
-uv run python -m pytest tests/ -m database -v
+uv run pytest tests/test_services.py -v
 ```
 
-### Direct Execution
+Or filter by marker:
+
 ```bash
-# Run the test file directly
-uv run python tests/test_api.py
+uv run pytest tests/ -m "database" -v
 ```
 
-## Test Categories
+## Test Data Assumptions
 
-### Database-Independent Tests
-- ✅ Health endpoint checks
-- ✅ Authentication protection
-- ✅ Input validation
-- ✅ Error handling
+- Tests create their own teachers/students using unique email addresses.
+- Admin-restricted endpoints rely on `settings.admin_emails`; the tests patch this via
+  `monkeypatch` so they do not leak state between runs.
+- No test relies on pre-seeded data, but the seed script inserts helpful defaults for
+  manual verification (`make db-seed`).
 
-### Database-Dependent Tests (marked with `@pytest.mark.database`)
-- 🔄 Teacher authentication flow
-- 🔄 Student authentication flow (NEW FEATURE)
-- 🔄 Course management
-- 🔄 Session management
-- 🔄 Public survey endpoints
-- 🔄 Comprehensive user flows
+## Maintenance Tips
 
-## Features Tested
-
-### New Student Authentication System
-- Student signup with email, password, and full name
-- Student login with JWT tokens
-- Student profile access
-- Student submission history
-- Integration with existing guest submission system
-
-### Existing Teacher System
-- Teacher authentication
-- Course creation and management
-- Session management
-- Survey template handling
-
-### Public API
-- Guest survey submission
-- Session joining via QR codes
-- Survey skipping functionality
-- Submission status checking
-
-## Test Data
-
-The tests use the following default credentials:
-- **Teacher**: `teacher1@example.com` / `Passw0rd!`
-- **Student**: `student1@example.com` / `Passw0rd!`
-
-## Notes
-
-- Tests are designed to be independent and can be run in any order
-- Database-dependent tests will be skipped if the database is not available
-- All tests use FastAPI's TestClient for efficient testing
-- Tests include proper cleanup to avoid data pollution
+- Add new endpoints to the integration suite to ensure regression coverage.
+- Keep the in-memory SQLite fixture aligned with SQLAlchemy models when new tables are added.
+- Any new service helper should have a corresponding unit test.

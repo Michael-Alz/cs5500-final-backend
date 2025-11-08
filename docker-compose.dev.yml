@@ -17,6 +17,7 @@ services:
       - ./app:/app/app             # live reload source (dev only)
       - ./alembic:/app/alembic     # live reload migrations
       - ./scripts:/app/scripts     # live reload scripts
+      - ./tests:/app/tests         # live reload tests
     networks:
       - 5500_network
     depends_on:

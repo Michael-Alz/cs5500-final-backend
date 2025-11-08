@@ -18,6 +18,9 @@ class Student(Base):
 
     # Relationships
     submissions = relationship("Submission", back_populates="student", cascade="all, delete-orphan")
+    course_profiles = relationship(
+        "CourseStudentProfile", back_populates="student", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Student id={self.id} email={self.email}>"
