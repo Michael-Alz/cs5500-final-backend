@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     system_default_activity_id: str | None = Field(
         None, validation_alias="SYSTEM_DEFAULT_ACTIVITY_ID"
     )
+    openrouter_api_base: str = Field(
+        "https://openrouter.ai/api/v1/chat/completions",
+        validation_alias="OPENROUTER_API_BASE",
+    )
+    openrouter_api_key: str | None = Field(None, validation_alias="OPENROUTER_API_KEY")
+    openrouter_default_model: str = Field(
+        "openrouter/auto", validation_alias="OPENROUTER_DEFAULT_MODEL"
+    )
 
     # Support both JSON arrays and comma-separated strings
     @field_validator("cors_origins", mode="before")

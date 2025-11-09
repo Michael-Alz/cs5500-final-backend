@@ -58,3 +58,9 @@ class CourseRecommendationsOut(BaseModel):
 
 class CourseRecommendationsPatchIn(BaseModel):
     mappings: List[CourseRecommendationMapping]
+
+
+class CourseAutoRecommendationRequest(BaseModel):
+    model: Optional[str] = None
+    temperature: float = Field(default=0.2, ge=0.0, le=1.0)
+    activity_limit: int = Field(default=25, ge=1, le=200)

@@ -9,25 +9,30 @@ UV = uv run
 APP = app.main
 PORT = 8000
 
+DEFAULT_SEED_SCRIPT := scripts/seed.py
+SEED_SCRIPT ?= $(DEFAULT_SEED_SCRIPT)
+
+ensure_py_extension = $(if $(filter %.py,$1),$1,$1.py)
+normalize_seed_script = $(if $(findstring /,$1),$(call ensure_py_extension,$1),scripts/$(call ensure_py_extension,$1))
+
 # -------------------------------------------------
 # DB-SEED SCRIPT SELECTION
 # -------------------------------------------------
 ifeq ($(firstword $(MAKECMDGOALS)),db-seed)
   DB_SEED_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-  ifeq ($(DB_SEED_ARGS),)
-    DB_SEED_SCRIPT_RAW := scripts/seed.py
-  else
-    DB_SEED_SCRIPT_RAW := $(firstword $(DB_SEED_ARGS))
-  endif
   ifneq ($(DB_SEED_ARGS),)
+    override SEED_SCRIPT := $(call normalize_seed_script,$(firstword $(DB_SEED_ARGS)))
     $(foreach arg,$(DB_SEED_ARGS),$(eval $(arg):;@:))
   endif
-else
-  DB_SEED_SCRIPT_RAW := scripts/seed.py
 endif
 
-DB_SEED_SCRIPT := $(if $(findstring /,$(DB_SEED_SCRIPT_RAW)),$(DB_SEED_SCRIPT_RAW),$(addprefix scripts/,$(DB_SEED_SCRIPT_RAW)))
-SEED_SCRIPT ?= $(DB_SEED_SCRIPT)
+ifeq ($(firstword $(MAKECMDGOALS)),dev)
+  DEV_SEED_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  ifneq ($(DEV_SEED_ARGS),)
+    override SEED_SCRIPT := $(call normalize_seed_script,$(firstword $(DEV_SEED_ARGS)))
+    $(foreach arg,$(DEV_SEED_ARGS),$(eval $(arg):;@:))
+  endif
+endif
 
 # -------------------------------------------------
 # INSTALLATION & SETUP
@@ -56,8 +61,8 @@ dev:
 	@until docker exec 5500_database_dev pg_isready -U class_connect_user -d class_connect_db > /dev/null 2>&1; do echo "Waiting for database..."; sleep 2; done
 	@echo "🔄 Applying database migrations (head)..."
 	docker-compose -f docker-compose.dev.yml run --rm backend uv run alembic upgrade head
-	@echo "🌱 Seeding database with starter data..."
-	docker-compose -f docker-compose.dev.yml run --rm backend uv run python scripts/seed.py
+	@echo "🌱 Seeding database with $(SEED_SCRIPT)..."
+	docker-compose -f docker-compose.dev.yml run --rm backend uv run python $(SEED_SCRIPT)
 	@echo "🚀 Bringing up FastAPI backend (live reload enabled)..."
 	docker-compose -f docker-compose.dev.yml up -d backend
 	@echo "✅ Development environment ready!"
