@@ -31,12 +31,14 @@ def _activity_payload(activity: Activity) -> dict[str, Any]:
 
 def _build_user_prompt(
     *,
+    course_title: str,
     learning_styles: Sequence[str],
     mood_labels: Sequence[str],
     activities_payload: Sequence[dict[str, Any]],
 ) -> str:
     return (
         "You are a classroom strategy assistant.\n\n"
+        f"Course title: {course_title}\n"
         "Here is background information about the students:\n"
         f"- Known learning styles: {json.dumps(list(learning_styles), ensure_ascii=False)}\n"
         f"- Known moods: {json.dumps(list(mood_labels), ensure_ascii=False)}\n\n"
@@ -73,6 +75,7 @@ def _build_user_prompt(
 
 async def generate_ai_recommendations(
     *,
+    course_title: str,
     learning_styles: Sequence[str],
     mood_labels: Sequence[str],
     activities: Sequence[Activity],
@@ -96,6 +99,7 @@ async def generate_ai_recommendations(
         _activity_payload(activity) for activity in activities[: request.activity_limit]
     ]
     prompt = _build_user_prompt(
+        course_title=course_title,
         learning_styles=styles,
         mood_labels=moods,
         activities_payload=activities_payload,

@@ -362,6 +362,7 @@ async def auto_generate_course_recommendations(
     activities = activity_query.all()
 
     ai_mappings = await generate_ai_recommendations(
+        course_title=course.title,
         learning_styles=learning_styles,
         mood_labels=mood_labels,
         activities=activities,
