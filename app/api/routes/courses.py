@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -13,14 +13,17 @@ from app.models.course_recommendation import CourseRecommendation
 from app.models.survey_template import SurveyTemplate
 from app.models.teacher import Teacher
 from app.schemas.course import (
+    CourseAutoRecommendationRequest,
     CourseCreate,
     CourseOut,
     CourseRecommendationActivity,
+    CourseRecommendationMapping,
     CourseRecommendationOutItem,
     CourseRecommendationsOut,
     CourseRecommendationsPatchIn,
     CourseUpdate,
 )
+from app.services.ai_recommendations import generate_ai_recommendations
 from app.services.recommendations import ensure_defaults_for_course
 from app.services.surveys import extract_learning_style_categories
 
@@ -80,6 +83,79 @@ def _course_to_schema(course: Course) -> CourseOut:
         course,
         from_attributes=True,
     )
+
+
+def _apply_recommendation_mappings(
+    db: Session,
+    course: Course,
+    mappings: Sequence[CourseRecommendationMapping],
+    *,
+    mark_auto: bool,
+    allow_overwrite_manual: bool,
+) -> List[tuple[Optional[str], Optional[str], str]]:
+    """Persist recommendation mappings with validation and optional overwrite rules."""
+    patched_pairs: list[tuple[Optional[str], Optional[str], str]] = []
+    for mapping in mappings:
+        learning_style = _normalize_key(mapping.learning_style)
+        mood = _normalize_key(mapping.mood)
+
+        if learning_style and learning_style not in (course.learning_style_categories or []):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"UNKNOWN_LEARNING_STYLE:{learning_style}",
+            )
+        if mood and mood not in (course.mood_labels or []):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"UNKNOWN_MOOD:{mood}",
+            )
+
+        activity = db.query(Activity).filter(Activity.id == mapping.activity_id).first()
+        if not activity:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"ACTIVITY_NOT_FOUND:{mapping.activity_id}",
+            )
+
+        existing_query = db.query(CourseRecommendation).filter(
+            CourseRecommendation.course_id == course.id
+        )
+        if learning_style is None:
+            existing_query = existing_query.filter(
+                or_(
+                    CourseRecommendation.learning_style.is_(None),
+                    CourseRecommendation.learning_style == "",
+                )
+            )
+        else:
+            existing_query = existing_query.filter(
+                CourseRecommendation.learning_style == learning_style
+            )
+
+        if mood is None:
+            existing_query = existing_query.filter(
+                or_(CourseRecommendation.mood.is_(None), CourseRecommendation.mood == "")
+            )
+        else:
+            existing_query = existing_query.filter(CourseRecommendation.mood == mood)
+
+        recommendation = existing_query.first()
+        if recommendation:
+            if not allow_overwrite_manual and not recommendation.is_auto:
+                continue
+            recommendation.activity_id = activity.id
+            recommendation.is_auto = mark_auto
+        else:
+            recommendation = CourseRecommendation(
+                course_id=course.id,
+                learning_style=learning_style,
+                mood=mood,
+                activity_id=activity.id,
+                is_auto=mark_auto,
+            )
+            db.add(recommendation)
+        patched_pairs.append((learning_style, mood, str(activity.id)))
+    return patched_pairs
 
 
 @router.post("/", response_model=CourseOut, status_code=status.HTTP_201_CREATED)
@@ -243,67 +319,13 @@ def upsert_course_recommendations(
     """Upsert recommendation mappings for a course."""
     course = _get_course_or_404(db, course_id, current_teacher)
 
-    patched_pairs: list[tuple[Optional[str], Optional[str], str]] = []
-
-    for mapping in payload.mappings:
-        learning_style = _normalize_key(mapping.learning_style)
-        mood = _normalize_key(mapping.mood)
-
-        if learning_style and learning_style not in (course.learning_style_categories or []):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"UNKNOWN_LEARNING_STYLE:{learning_style}",
-            )
-        if mood and mood not in (course.mood_labels or []):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"UNKNOWN_MOOD:{mood}",
-            )
-
-        activity = db.query(Activity).filter(Activity.id == mapping.activity_id).first()
-        if not activity:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"ACTIVITY_NOT_FOUND:{mapping.activity_id}",
-            )
-
-        existing_query = db.query(CourseRecommendation).filter(
-            CourseRecommendation.course_id == course.id
-        )
-        if learning_style is None:
-            existing_query = existing_query.filter(
-                or_(
-                    CourseRecommendation.learning_style.is_(None),
-                    CourseRecommendation.learning_style == "",
-                )
-            )
-        else:
-            existing_query = existing_query.filter(
-                CourseRecommendation.learning_style == learning_style
-            )
-
-        if mood is None:
-            existing_query = existing_query.filter(
-                or_(CourseRecommendation.mood.is_(None), CourseRecommendation.mood == "")
-            )
-        else:
-            existing_query = existing_query.filter(CourseRecommendation.mood == mood)
-
-        recommendation = existing_query.first()
-        if recommendation:
-            recommendation.activity_id = activity.id
-            recommendation.is_auto = False
-        else:
-            recommendation = CourseRecommendation(
-                course_id=course.id,
-                learning_style=learning_style,
-                mood=mood,
-                activity_id=activity.id,
-                is_auto=False,
-            )
-            db.add(recommendation)
-        patched_pairs.append((learning_style, mood, str(activity.id)))
-
+    patched_pairs = _apply_recommendation_mappings(
+        db,
+        course,
+        payload.mappings,
+        mark_auto=False,
+        allow_overwrite_manual=True,
+    )
     ensure_defaults_for_course(db, course.id, patched_pairs)
     db.commit()
 
@@ -314,3 +336,42 @@ def upsert_course_recommendations(
         mood_labels=list(refreshed.mood_labels or []),
         mappings=[_serialize_recommendation_item(rec) for rec in refreshed.recommendations],
     )
+
+
+@router.post(
+    "/{course_id}/recommendations/auto",
+    response_model=CourseRecommendationsPatchIn,
+    status_code=status.HTTP_200_OK,
+)
+async def auto_generate_course_recommendations(
+    course_id: str,
+    payload: CourseAutoRecommendationRequest = Body(
+        default_factory=CourseAutoRecommendationRequest
+    ),
+    db: Session = Depends(get_db),
+    current_teacher: Teacher = Depends(get_current_teacher),
+) -> CourseRecommendationsOut:
+    """Generate recommendation mappings using OpenRouter AI and persist auto selections."""
+    course = _get_course_or_404(db, course_id, current_teacher)
+
+    learning_styles = list(course.learning_style_categories or [])
+    mood_labels = list(course.mood_labels or [])
+
+    activity_query = db.query(Activity).order_by(Activity.updated_at.desc())
+    activity_query = activity_query.limit(payload.activity_limit)
+    activities = activity_query.all()
+
+    ai_mappings = await generate_ai_recommendations(
+        learning_styles=learning_styles,
+        mood_labels=mood_labels,
+        activities=activities,
+        request=payload,
+    )
+
+    if not ai_mappings:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI_RECOMMENDER_EMPTY_RESPONSE",
+        )
+
+    return CourseRecommendationsPatchIn(mappings=ai_mappings)

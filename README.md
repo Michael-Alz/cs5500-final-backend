@@ -102,6 +102,57 @@ make dev
 -   **CourseRecommendation**: Mapping of `(learning_style, mood)` to an `Activity` with fallback
     support (style default, mood default, random course activity).
 
+## AI-Powered Recommendations
+
+Teachers can ask the platform to auto-generate `(learning_style, mood) → activity` mappings using any
+OpenRouter model. Configure the integration via environment variables (set both in
+`.env.example.docker` and `.env.dev.docker`):
+
+```bash
+OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_DEFAULT_MODEL=openrouter/meta/llama-3.1-8b-instruct
+OPENROUTER_API_BASE=https://openrouter.ai/api/v1/chat/completions
+```
+
+At runtime the backend fetches the course learning styles, mood labels, and the newest activities
+(`activity_limit`, default 25), builds a prompt, and calls OpenRouter. The service does **not**
+persist changes; it simply returns the AI suggestion set so the UI can review/edit before applying.
+
+### API Flow
+
+1. `POST /api/courses/{course_id}/recommendations/auto`
+    - Auth: teacher JWT
+    - Optional body (all fields optional; `{}` works):
+        ```json
+        {
+          "model": "openrouter/meta/llama-3.1-8b-instruct",
+          "temperature": 0.2,
+          "activity_limit": 25
+        }
+        ```
+    - Response (`200 OK`):
+        ```json
+        {
+          "mappings": [
+            { "learning_style": "Active learner", "mood": "Happy", "activity_id": "…" },
+            { "learning_style": "Active learner", "mood": "Sad", "activity_id": "…" }
+            // one entry per style × mood combination
+          ]
+        }
+        ```
+    - Typical error responses:
+        - `502 AI_RECOMMENDER_INVALID_PAYLOAD` – model didn’t return valid JSON.
+        - `502 AI_RECOMMENDER_INCOMPLETE_COMBINATIONS` – model skipped a style/mood pair.
+        - `503 AI_RECOMMENDER_NOT_CONFIGURED` – missing `OPENROUTER_API_KEY`.
+
+2. `PATCH /api/courses/{course_id}/recommendations`
+    - Apply the mappings you like (either raw from AI or with manual tweaks). The backend enforces
+      that activity IDs exist and that the learning style / mood names belong to the course.
+
+Because the AI endpoint only reads data, teachers can run it multiple times and compare outputs
+without affecting existing manual mappings. Once satisfied, invoke the regular PATCH endpoint to
+persist the recommendations.
+
 ## API Reference
 
 **Base URL:** `http://localhost:8000`
