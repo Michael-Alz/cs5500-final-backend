@@ -63,6 +63,8 @@ def compute_total_scores(
 
         for index, option in enumerate(question.get("options", [])):
             option_id = option.get("id") or option.get("option_id") or option.get("value")
+            if option_id is None:
+                option_id = f"{question_id}_opt_{index}"
             option_label = option.get("label") or option.get("text")
 
             if selected_answer not in {str(option_id), str(option_label)}:

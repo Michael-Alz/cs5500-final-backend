@@ -97,6 +97,23 @@ def test_compute_total_scores_and_determine_learning_style() -> None:
     assert determine_learning_style(totals) == "Auditory"
 
 
+def test_compute_total_scores_handles_generated_option_ids() -> None:
+    snapshot = {
+        "questions": [
+            {
+                "id": "q1",
+                "options": [
+                    {"label": "Move", "scores": {"Active learner": 2}},
+                    {"label": "Reflect", "scores": {"Passive learner": 3}},
+                ],
+            }
+        ]
+    }
+    answers = {"q1": "q1_opt_1"}
+    totals = compute_total_scores(snapshot, answers)
+    assert totals == {"Active learner": 0, "Passive learner": 3}
+
+
 def test_snapshot_to_public_payload() -> None:
     snapshot = {
         "survey_id": "survey-123",
