@@ -285,10 +285,24 @@ def get_session_dashboard(
         mood = submission.mood or "unknown"
         mood_counter[mood] += 1
 
+        submission_learning_style: Optional[str] = None
+        if submission.total_scores:
+            totals: Dict[str, int] = {}
+            for key, value in submission.total_scores.items():
+                try:
+                    totals[str(key)] = int(value)
+                except (TypeError, ValueError):
+                    continue
+            submission_learning_style = determine_learning_style(totals)
+
         if submission.student_id:
             profile = profiles_by_student.get(submission.student_id)
-            learning_style = profile.profile_category if profile else None
+            profile_learning_style = profile.profile_category if profile else None
             display_name = submission.student.full_name if submission.student else "Student"
+            if session.require_survey:
+                learning_style = submission_learning_style or profile_learning_style
+            else:
+                learning_style = profile_learning_style
             participant = SessionDashboardParticipant(
                 display_name=display_name,
                 mode="student",
@@ -302,8 +316,12 @@ def get_session_dashboard(
             )
         else:
             profile = profiles_by_guest.get(submission.guest_id)
-            learning_style = profile.profile_category if profile else None
+            profile_learning_style = profile.profile_category if profile else None
             display_name = submission.guest_name or "Guest"
+            if session.require_survey:
+                learning_style = submission_learning_style or profile_learning_style
+            else:
+                learning_style = profile_learning_style
             participant = SessionDashboardParticipant(
                 display_name=display_name,
                 mode="guest",
