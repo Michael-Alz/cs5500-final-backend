@@ -953,7 +953,7 @@ def seed_activity_types_and_activities(db: Session) -> Dict[str, base_seed.Activ
                 "duration_sec": 151,
                 "notes": (
                     "5 Steps to Wellbeing Animation — animated video outlining five steps to "
-                    "improve mental health and wellbeing. After watching, students can act out "
+                    "improve mental health and wellbeing. After watching, you can act out "
                     "one step (e.g., talking to a friend) and use flags: green = I'll do it, "
                     "yellow = maybe, red = not yet."
                 ),
@@ -969,9 +969,9 @@ def seed_activity_types_and_activities(db: Session) -> Dict[str, base_seed.Activ
                 "duration_sec": 389,
                 "notes": (
                     "Wellbeing For Children: Confidence And Self-Esteem — animation about "
-                    "confidence, self-esteem and wellbeing. Students can role-play confident "
-                    "vs. unconfident body language and use flags green/yellow/red for how "
-                    "good the posture/behaviour is for wellbeing."
+                    "confidence, self-esteem and wellbeing. You and your classmates can role-play "
+                    "confident vs. unconfident body language and use flags green/yellow/red for "
+                    "how good the posture/behaviour is for wellbeing."
                 ),
             },
         },
@@ -985,8 +985,8 @@ def seed_activity_types_and_activities(db: Session) -> Dict[str, base_seed.Activ
                 "duration_sec": 222,
                 "notes": (
                     "The Reflection in Me — short about self-image and self-acceptance. "
-                    "Students can complete a reflection (e.g., 'When I look in the mirror, "
-                    "I feel…') and optionally use flags to show how they feel about themselves."
+                    "You can complete a reflection (e.g., 'When I look in the mirror, "
+                    "I feel…') and optionally use flags to show how you feel about yourself."
                 ),
             },
         },
