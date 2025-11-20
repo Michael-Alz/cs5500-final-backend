@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
 
@@ -9,6 +9,7 @@ from app.models.course import Course
 from app.models.course_student_profile import CourseStudentProfile
 from app.models.student import Student
 from app.models.submission import Submission
+from app.services.surveys import build_answer_details
 
 
 def get_current_profile(
@@ -41,8 +42,14 @@ def upsert_submission(
     student: Optional[Student] = None,
     guest_id: Optional[str] = None,
     guest_name: Optional[str] = None,
+    survey_snapshot: Optional[Dict[str, Any]] = None,
 ) -> Submission:
     """Create or update a submission for the participant."""
+    answers_payload: Optional[Dict[str, Any]] = None
+    if answers:
+        details = build_answer_details(survey_snapshot or {}, answers) if survey_snapshot else {}
+        answers_payload = {"raw_answers": answers, "details": details}
+
     submission_query = db.query(Submission).filter(Submission.session_id == session.id)
     if student:
         submission_query = submission_query.filter(Submission.student_id == student.id)
@@ -55,7 +62,7 @@ def upsert_submission(
     if submission:
         submission.course_id = course.id
         submission.mood = mood
-        submission.answers_json = answers
+        submission.answers_json = answers_payload
         submission.total_scores = total_scores
         submission.is_baseline_update = is_baseline_update
         submission.status = status
@@ -67,7 +74,7 @@ def upsert_submission(
             guest_id=guest_id if not student else None,
             guest_name=guest_name if not student else None,
             mood=mood,
-            answers_json=answers,
+            answers_json=answers_payload,
             total_scores=total_scores,
             is_baseline_update=is_baseline_update,
             status=status,
@@ -108,3 +115,16 @@ def update_course_student_profile(
     )
     db.add(profile)
     return profile
+
+
+def split_answers_payload(
+    answers_json: Optional[Dict[str, Any]],
+) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """Separate the stored answers into raw ids and detailed text payloads."""
+    if not answers_json:
+        return None, None
+
+    if "raw_answers" in answers_json or "details" in answers_json:
+        return answers_json.get("raw_answers"), answers_json.get("details")
+
+    return answers_json, None

@@ -40,6 +40,7 @@ class StudentSubmissionHistoryItem(BaseModel):
     session_id: str
     course_title: str
     answers: Dict[str, Any]
+    answer_details: Optional[Dict[str, Any]] = None
     total_scores: Optional[Dict[str, int]]
     status: str  # "skipped" or "completed"
     created_at: datetime

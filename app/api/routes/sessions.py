@@ -28,6 +28,7 @@ from app.services.recommendations import (
     build_recommended_activity_payload,
     get_recommended_activity,
 )
+from app.services.submissions import split_answers_payload
 from app.services.surveys import build_survey_snapshot, determine_learning_style
 
 router = APIRouter()
@@ -83,7 +84,7 @@ def _load_baseline_template(db: Session, course: Course) -> SurveyTemplate:
 
 
 def _serialize_submission(submission: Submission) -> SubmissionItem:
-    answers = submission.answers_json if submission.answers_json else None
+    raw_answers, answer_details = split_answers_payload(submission.answers_json)
     total_scores = submission.total_scores if submission.total_scores else None
     learning_style = None
     if total_scores:
@@ -99,7 +100,8 @@ def _serialize_submission(submission: Submission) -> SubmissionItem:
             else None
         ),
         mood=str(submission.mood),
-        answers=dict(answers) if answers else None,
+        answers=dict(raw_answers) if raw_answers else None,
+        answer_details=dict(answer_details) if answer_details else None,
         total_scores=dict(total_scores) if total_scores else None,
         learning_style=learning_style,
         is_baseline_update=bool(submission.is_baseline_update),

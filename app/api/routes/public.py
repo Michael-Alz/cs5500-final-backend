@@ -167,6 +167,7 @@ def public_submit(
         student=current_student if not is_guest_mode else None,
         guest_id=guest_id if is_guest_mode else None,
         guest_name=guest_name if is_guest_mode else None,
+        survey_snapshot=session.survey_snapshot_json,
     )
     db.flush()
 

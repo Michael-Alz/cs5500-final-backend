@@ -304,7 +304,19 @@ Unless noted, success responses use `200 OK`.
     			"id": "59d8b6bb-4e3b-4f28-a854-91771b65d2ac",
     			"session_id": "d4cfc5e6-bb0f-4be7-8531-81089cb91f71",
     			"course_title": "CS 5500",
-    			"answers": { "q1": "option_a" },
+    			"answers": { "q1": "q1_opt_0" },
+    			"answer_details": {
+    				"q1": {
+    					"question_id": "q1",
+    					"question_text": "How do you prefer to learn new concepts?",
+    					"selected_option_id": "q1_opt_0",
+    					"selected_option_text": "Watch a demonstration",
+    					"options": [
+    						{ "option_id": "q1_opt_0", "text": "Watch a demonstration" },
+    						{ "option_id": "q1_opt_1", "text": "Listen to an explanation" }
+    					]
+    				}
+    			},
     			"total_scores": { "visual": 9, "auditory": 3 },
     			"status": "completed",
     			"created_at": "2024-03-01T15:42:10.000000+00:00",
@@ -653,7 +665,19 @@ Unless noted, success responses use `200 OK`.
     			"student_id": "e54e9f57-4df1-4468-9f7f-0b6a3cb3fc7e",
     			"student_full_name": "Jordan Student",
     			"mood": "energized",
-    			"answers": { "q1": "option_a" },
+    			"answers": { "q1": "q1_opt_0" },
+    			"answer_details": {
+    				"q1": {
+    					"question_id": "q1",
+    					"question_text": "How do you prefer to learn new concepts?",
+    					"selected_option_id": "q1_opt_0",
+    					"selected_option_text": "Watch a demonstration",
+    					"options": [
+    						{ "option_id": "q1_opt_0", "text": "Watch a demonstration" },
+    						{ "option_id": "q1_opt_1", "text": "Listen to an explanation" }
+    					]
+    				}
+    			},
     			"total_scores": { "visual": 9, "auditory": 3 },
     			"learning_style": "visual",
     			"is_baseline_update": true,
@@ -1021,7 +1045,7 @@ These routes are meant for local development and automated tests.
 | `guest_name`       | VARCHAR(255) | Required when `student_id` is null.                                                                |
 | `guest_id`         | UUID (text)  | Required when `student_id` is null (stable guest identifier).                                      |
 | `mood`             | VARCHAR(50)  | Mood option selected by the participant.                                                           |
-| `answers_json`     | JSON         | Optional answers keyed by question id.                                                             |
+| `answers_json`     | JSON         | Optional answers. Stores raw answer ids plus `answer_details` (question/option text snapshots).    |
 | `total_scores`     | JSON         | Optional aggregate learning style scores.                                                          |
 | `is_baseline_update` | BOOLEAN    | True when the submission captured a new learning style profile.                                    |
 | `status`           | VARCHAR(20)  | `"completed"` or `"skipped"` (currently always `"completed"`).                                     |
