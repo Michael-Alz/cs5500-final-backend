@@ -59,7 +59,12 @@ def login(student_data: StudentLoginIn, db: Session = Depends(get_db)) -> Studen
     # Create access token
     access_token = create_access_token(str(student.id))
 
-    return StudentLoginOut(access_token=access_token, token_type="bearer")
+    return StudentLoginOut(
+        access_token=access_token,
+        token_type="bearer",
+        student_email=str(student.email),
+        student_full_name=str(student.full_name),
+    )
 
 
 @router.get("/me", response_model=StudentProfileOut)

@@ -21,3 +21,5 @@ class TeacherLoginIn(BaseModel):
 class TeacherLoginOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    teacher_email: str
+    teacher_full_name: str

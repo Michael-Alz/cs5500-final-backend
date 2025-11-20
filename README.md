@@ -233,15 +233,17 @@ Unless noted, success responses use `200 OK`.
 -   Request body:
     ```json
     {
-    	"email": "prof@example.edu",
-    	"password": "Supersafe123"
+        "email": "prof@example.edu",
+        "password": "Supersafe123"
     }
     ```
 -   Response 200:
     ```json
     {
-    	"access_token": "<jwt>",
-    	"token_type": "bearer"
+        "access_token": "<jwt>",
+        "token_type": "bearer",
+        "teacher_email": "prof@example.edu",
+        "teacher_full_name": "Professor Oak"
     }
     ```
 -   Failure codes: `401 AUTH_INVALID_CREDENTIALS`.
@@ -254,9 +256,9 @@ Unless noted, success responses use `200 OK`.
 -   Request body:
     ```json
     {
-    	"email": "student@example.edu",
-    	"password": "MySecret123",
-    	"full_name": "Jordan Student"
+        "email": "student@example.edu",
+        "password": "MySecret123",
+        "full_name": "Jordan Student"
     }
     ```
 -   Response 200 mirrors teacher signup.
@@ -266,7 +268,15 @@ Unless noted, success responses use `200 OK`.
 
 -   Auth: none
 -   Request body mirrors teacher login.
--   Response 200 matches the teacher login token shape.
+-   Response 200 matches the teacher login token shape (token plus student info).
+    ```json
+    {
+        "access_token": "<jwt>",
+        "token_type": "bearer",
+        "student_email": "student@example.edu",
+        "student_full_name": "Jordan Student"
+    }
+    ```
 -   Failure codes: `401 AUTH_INVALID_CREDENTIALS`.
 
 #### GET /api/students/me

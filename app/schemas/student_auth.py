@@ -24,6 +24,8 @@ class StudentLoginIn(BaseModel):
 class StudentLoginOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    student_email: str
+    student_full_name: str
 
 
 class StudentProfileOut(BaseModel):

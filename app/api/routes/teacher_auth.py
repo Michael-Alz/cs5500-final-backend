@@ -55,4 +55,9 @@ def login(user_data: TeacherLoginIn, db: Session = Depends(get_db)) -> TeacherLo
     # Create access token
     access_token = create_access_token(str(teacher.id))
 
-    return TeacherLoginOut(access_token=access_token, token_type="bearer")
+    return TeacherLoginOut(
+        access_token=access_token,
+        token_type="bearer",
+        teacher_email=str(teacher.email),
+        teacher_full_name=str(teacher.full_name or ""),
+    )
