@@ -1,6 +1,6 @@
 from typing import List, Optional, Sequence
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -268,6 +268,19 @@ def update_course(
     db.commit()
     db.refresh(course)
     return _course_to_schema(course)
+
+
+@router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_course(
+    course_id: str,
+    db: Session = Depends(get_db),
+    current_teacher: Teacher = Depends(get_current_teacher),
+) -> Response:
+    """Delete a course and all related records (sessions, submissions, mappings, profiles)."""
+    course = _get_course_or_404(db, course_id, current_teacher)
+    db.delete(course)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 def _serialize_recommendation_item(

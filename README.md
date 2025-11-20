@@ -462,6 +462,13 @@ Unless noted, success responses use `200 OK`.
 -   Response 200 mirrors `CourseOut`.
 -   Failure codes mirror creation (including `SURVEY_TEMPLATE_NOT_FOUND`).
 
+#### DELETE /api/courses/{course_id}
+
+-   Auth: teacher bearer token; only the course owner can delete.
+-   Behavior: removes the course and all related records (sessions, submissions, course_student_profiles, recommendation mappings) via cascading deletes.
+-   Response 204 has no body.
+-   Failure codes: `404 COURSE_NOT_FOUND` (returned if the course does not exist or is not owned by the caller).
+
 #### GET /api/courses/{course_id}/recommendations
 
 -   Auth: teacher bearer token.
