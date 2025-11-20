@@ -24,6 +24,8 @@ class StudentLoginIn(BaseModel):
 class StudentLoginOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    student_email: str
+    student_full_name: str
 
 
 class StudentProfileOut(BaseModel):
@@ -38,6 +40,7 @@ class StudentSubmissionHistoryItem(BaseModel):
     session_id: str
     course_title: str
     answers: Dict[str, Any]
+    answer_details: Optional[Dict[str, Any]] = None
     total_scores: Optional[Dict[str, int]]
     status: str  # "skipped" or "completed"
     created_at: datetime

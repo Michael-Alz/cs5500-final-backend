@@ -10,6 +10,7 @@ class SubmissionItem(BaseModel):
     student_full_name: Optional[str] = None  # For authenticated students
     mood: str
     answers: Optional[Dict[str, Any]] = None
+    answer_details: Optional[Dict[str, Any]] = None
     total_scores: Optional[Dict[str, int]] = None  # Dynamic category scores
     learning_style: Optional[str] = None
     is_baseline_update: bool

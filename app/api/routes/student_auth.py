@@ -14,6 +14,7 @@ from app.schemas.student_auth import (
     StudentSubmissionHistoryItem,
     StudentSubmissionHistoryOut,
 )
+from app.services.submissions import split_answers_payload
 
 router = APIRouter()
 
@@ -59,7 +60,12 @@ def login(student_data: StudentLoginIn, db: Session = Depends(get_db)) -> Studen
     # Create access token
     access_token = create_access_token(str(student.id))
 
-    return StudentLoginOut(access_token=access_token, token_type="bearer")
+    return StudentLoginOut(
+        access_token=access_token,
+        token_type="bearer",
+        student_email=str(student.email),
+        student_full_name=str(student.full_name),
+    )
 
 
 @router.get("/me", response_model=StudentProfileOut)
@@ -103,12 +109,15 @@ def get_student_submissions(
         if session and session.course:
             course_title = session.course.title
 
+        raw_answers, answer_details = split_answers_payload(submission.answers_json)
+
         items.append(
             StudentSubmissionHistoryItem(
                 id=str(submission.id),
                 session_id=str(submission.session_id),
                 course_title=course_title,
-                answers=dict(submission.answers_json) if submission.answers_json else {},
+                answers=dict(raw_answers) if raw_answers else {},
+                answer_details=dict(answer_details) if answer_details else None,
                 total_scores=dict(submission.total_scores) if submission.total_scores else None,
                 status=str(submission.status),
                 created_at=submission.created_at,  # type: ignore[arg-type]

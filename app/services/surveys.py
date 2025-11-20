@@ -139,3 +139,48 @@ def snapshot_to_public_payload(snapshot: Optional[Dict[str, Any]]) -> Optional[D
         "title": snapshot.get("title"),
         "questions": questions_payload,
     }
+
+
+def build_answer_details(
+    survey_snapshot: Dict[str, Any], answers: Dict[str, str]
+) -> Dict[str, Any]:
+    """Return a per-question mapping that includes question/option text for the chosen answers."""
+    details: Dict[str, Any] = {}
+    questions: List[dict[str, Any]] = survey_snapshot.get("questions", [])
+
+    for question_index, question in enumerate(questions):
+        question_id = question.get("id") or question.get("question_id")
+        if not question_id:
+            continue
+
+        selected = answers.get(str(question_id))
+        if not selected:
+            continue
+
+        question_text = question.get("text") or question.get("question") or str(question_id)
+        selected_option_id = None
+        selected_option_text = None
+        options_detail: List[Dict[str, str]] = []
+
+        for option_index, option in enumerate(question.get("options", [])):
+            option_id = option.get("id") or option.get("option_id") or option.get("value")
+            if option_id is None:
+                option_id = f"{question_id}_opt_{option_index}"
+            option_text = option.get("text") or option.get("label") or str(option_id)
+            option_id_str = str(option_id)
+            options_detail.append({"option_id": option_id_str, "text": str(option_text)})
+
+            if str(selected) in {option_id_str, str(option_text)}:
+                selected_option_id = option_id_str
+                selected_option_text = str(option_text)
+
+        if selected_option_id:
+            details[str(question_id)] = {
+                "question_id": str(question_id),
+                "question_text": str(question_text),
+                "selected_option_id": selected_option_id,
+                "selected_option_text": selected_option_text,
+                "options": options_detail,
+            }
+
+    return details
