@@ -63,20 +63,30 @@ jobs:
           mkdir -p "$APP_DIR"
           cd "$APP_DIR"
           echo "$COMPOSE_B64" | base64 -d > docker-compose.prod.yml
+
           if [ ! -f .env.prod ]; then
             echo ".env.prod is missing in $APP_DIR" >&2
             exit 1
           fi
+
+          # Validate DATABASE_URL is set in env file
+          DB_URL=$(grep -E '^DATABASE_URL=' .env.prod | cut -d'=' -f2- || true)
+          if [ -z "$DB_URL" ]; then
+            echo "DATABASE_URL is missing/empty in .env.prod" >&2
+            exit 1
+          fi
+
           echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-          docker compose -f docker-compose.prod.yml pull
-          docker compose -f docker-compose.prod.yml down
-          docker compose -f docker-compose.prod.yml up -d database
-          until docker compose -f docker-compose.prod.yml ps database | grep -q "healthy"; do
+
+          docker compose --env-file .env.prod -f docker-compose.prod.yml pull
+          docker compose --env-file .env.prod -f docker-compose.prod.yml down
+          docker compose --env-file .env.prod -f docker-compose.prod.yml up -d database
+          until docker compose --env-file .env.prod -f docker-compose.prod.yml ps database | grep -q "healthy"; do
             sleep 5
           done
-          docker compose -f docker-compose.prod.yml run --rm backend uv run alembic upgrade head
-          docker compose -f docker-compose.prod.yml run --rm backend uv run python scripts/seed_deploy.py
-          docker compose -f docker-compose.prod.yml up -d backend
+          docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm backend uv run alembic upgrade head
+          docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm backend uv run python scripts/seed_deploy.py
+          docker compose --env-file .env.prod -f docker-compose.prod.yml up -d backend
           docker image prune -f
           EOF
           )
