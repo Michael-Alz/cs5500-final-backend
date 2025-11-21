@@ -13,12 +13,38 @@ This walks through preparing an EC2 host, running Postgres + backend in Docker, 
 - IAM role (preferred): or use access key secrets as you have now. Attach SSM managed policy and ECR read if needed later.
 
 ## 2) Install Docker on the instance
+Amazon Linux 2023 repos have `docker` (moby) but not the Compose v2 plugin. Use the native package for the engine, then install the Compose plugin manually.
 ```bash
 sudo dnf update -y
-sudo dnf install -y docker docker-compose-plugin
+sudo dnf install -y docker
 sudo systemctl enable --now docker
 sudo usermod -aG docker ec2-user  # re-login to use docker without sudo
 ```
+
+Install the Compose v2 plugin manually:
+```bash
+DC_VERSION=v2.29.7
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+curl -SL https://github.com/docker/compose/releases/download/${DC_VERSION}/docker-compose-linux-x86_64 \
+  | sudo tee /usr/local/lib/docker/cli-plugins/docker-compose >/dev/null
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+docker compose version
+```
+
+If you insist on Docker CE from the upstream repo (instead of the Amazon package) and hit 404s, force the CentOS 7 baseurl:
+```bash
+sudo dnf -y install yum-utils
+sudo tee /etc/yum.repos.d/docker-ce.repo >/dev/null <<'EOF'
+[docker-ce-stable]
+name=Docker CE Stable - $basearch
+baseurl=https://download.docker.com/linux/centos/7/$basearch/stable
+enabled=1
+gpgcheck=1
+gpgkey=https://download.docker.com/linux/centos/gpg
+EOF
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+But the Amazon `docker` package + manual Compose is usually simpler on AL2023.
 
 ## 3) (Optional) Add swap on t3.small for headroom
 ```bash
@@ -31,9 +57,9 @@ echo '/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab
 
 ## 4) Prepare app directory and env
 ```bash
-sudo mkdir -p /opt/classconnect
-cd /opt/classconnect
-sudo tee .env.prod >/dev/null <<'EOF'
+mkdir -p /home/ec2-user/classconnect
+cd /home/ec2-user/classconnect
+tee .env.prod >/dev/null <<'EOF'
 # copy from .env.example.prod and fill real values
 APP_NAME=5500 Backend
 APP_ENV=prod
@@ -69,7 +95,7 @@ sudo systemctl enable --now amazon-ssm-agent
 ## 6) (Optional) Manual first-time run/seed
 If you want to test before CI:
 ```bash
-cd /opt/classconnect
+cd /home/ec2-user/classconnect
 curl -O https://raw.githubusercontent.com/your-repo/cs5500-final-backend/main/docker-compose.prod.yml
 IMAGE_NAME=your-dockerhub-username/cs5500-backend IMAGE_TAG=latest sudo docker compose -f docker-compose.prod.yml up -d database
 sudo docker compose -f docker-compose.prod.yml run --rm backend uv run alembic upgrade head
@@ -90,12 +116,12 @@ Required repo secrets (already noted in screenshot):
 
 ## 8) Verify
 ```bash
-sudo docker compose -f /opt/classconnect/docker-compose.prod.yml ps
+sudo docker compose -f /home/ec2-user/classconnect/docker-compose.prod.yml ps
 curl -I http://<your-ec2-public-dns>/health
 ```
 
 ## 9) Ops tips
-- Keep `/opt/classconnect/.env.prod` out of git; edit only on the server or via SSM session
+- Keep `/home/ec2-user/classconnect/.env.prod` out of git; edit only on the server or via SSM session
 - Enable CloudWatch log shipping if you want centralized logs, or use `docker logs` locally
 - Regularly prune old images: `sudo docker image prune -f`
 - Back up the Postgres volume (`pgdata`), or snapshot the EBS volume as needed
