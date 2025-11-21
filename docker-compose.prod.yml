@@ -1,41 +1,54 @@
-version: "3.9"
+version: '3.9'
 
 services:
-  database:
-    image: postgres:16-alpine
-    container_name: classconnect-db
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-class_connect_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-class_connect_password}
-      POSTGRES_DB: ${POSTGRES_DB:-class_connect_db}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-class_connect_user} -d ${POSTGRES_DB:-class_connect_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+    database:
+        image: postgres:16-alpine
+        container_name: classconnect-db
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER:-class_connect_user}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-class_connect_password}
+            POSTGRES_DB: ${POSTGRES_DB:-class_connect_db}
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        healthcheck:
+            test:
+                [
+                    'CMD-SHELL',
+                    'pg_isready -U ${POSTGRES_USER:-class_connect_user} -d ${POSTGRES_DB:-class_connect_db}',
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        restart: unless-stopped
 
-  backend:
-    image: ${IMAGE_NAME:-your-dockerhub-username/cs5500-backend}:${IMAGE_TAG:-latest}
-    container_name: classconnect-backend
-    depends_on:
-      database:
-        condition: service_healthy
-    env_file:
-      - .env.prod
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-    command: uv run uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
-    ports:
-      - "80:${HOST_PORT:-8000}"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:${PORT:-8000}/health || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+    backend:
+        image: ${IMAGE_NAME:-your-dockerhub-username/cs5500-backend}:${IMAGE_TAG:-latest}
+        container_name: classconnect-backend
+        depends_on:
+            database:
+                condition: service_healthy
+        env_file:
+            - .env.prod
+        environment:
+            DATABASE_URL: ${DATABASE_URL}
+        command: >
+            uv run uvicorn app.main:app 
+            --host 0.0.0.0 
+            --port ${PORT:-8000}
+            --proxy-headers
+            --forwarded-allow-ips '*'
+        ports:
+            - '80:${HOST_PORT:-8000}'
+        restart: unless-stopped
+        healthcheck:
+            test:
+                [
+                    'CMD-SHELL',
+                    'curl -fsS http://localhost:${PORT:-8000}/health || exit 1',
+                ]
+            interval: 30s
+            timeout: 5s
+            retries: 3
 
 volumes:
-  pgdata:
+    pgdata:
