@@ -8,7 +8,7 @@ from app.db import get_db
 from app.schemas.admin import AdminActionRequest, SeedVariant
 from app.services.maintenance import clear_database_data
 from scripts import seed as full_seed
-from scripts import seed_deploy_test
+from scripts import seed_deploy, seed_deploy_test
 
 router = APIRouter()
 
@@ -16,6 +16,7 @@ SeedRunner = Callable[[], None]
 SEED_RUNNERS: dict[SeedVariant, SeedRunner] = {
     SeedVariant.SEED: full_seed.seed_data,
     SeedVariant.DEPLOY_TEST: seed_deploy_test.seed_data,
+    SeedVariant.DEPLOY: seed_deploy.seed_data,
 }
 
 

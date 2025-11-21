@@ -8,6 +8,7 @@ class SeedVariant(str, Enum):
 
     SEED = "seed"
     DEPLOY_TEST = "seed_deploy_test"
+    DEPLOY = "seed_deploy"
 
 
 class AdminActionRequest(BaseModel):
