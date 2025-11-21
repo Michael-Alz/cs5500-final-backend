@@ -31,10 +31,8 @@ class Settings(BaseSettings):
     # ---------------------- #
     #  CORS Configuration    #
     # ---------------------- #
-    cors_origins: List[str] = Field(
-        default=["http://localhost:5173", "http://localhost:3000"],
-        validation_alias="CORS_ORIGINS",
-    )
+    # If empty, backend will allow all origins (see app/main.py for regex-based wildcard).
+    cors_origins: List[str] = Field(default=[], validation_alias="CORS_ORIGINS")
     admin_emails: List[str] = Field(default=[], validation_alias="ADMIN_EMAILS")
     maintenance_admin_password: str | None = Field(
         None, validation_alias="MAINTENANCE_ADMIN_PASSWORD"
