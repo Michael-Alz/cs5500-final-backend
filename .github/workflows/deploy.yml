@@ -3,10 +3,10 @@ name: Deploy to EC2 via SSM
 on:
     push:
         branches:
-            - main # Trigger deployment on push to the main branch
+            - main
 
 env:
-    # Define environment variables used throughout the job
+    # Define image name using the secret username
     IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/cs5500-backend
     IMAGE_TAG: ${{ github.sha }}
 
@@ -14,18 +14,18 @@ jobs:
     build-and-deploy:
         runs-on: ubuntu-latest
         permissions:
-            contents: read # Required to checkout code
+            contents: read
         steps:
             - name: Checkout Code
               uses: actions/checkout@v4
 
-            - name: Docker login (Docker Hub)
+            - name: Docker Login (Docker Hub)
               uses: docker/login-action@v3
               with:
                   username: ${{ secrets.DOCKER_USERNAME }}
                   password: ${{ secrets.DOCKER_PASSWORD }}
 
-            - name: Build and push image
+            - name: Build and Push Image
               uses: docker/build-push-action@v5
               with:
                   context: .
@@ -35,75 +35,96 @@ jobs:
                       ${{ env.IMAGE_NAME }}:latest
                       ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-            - name: Prepare compose payload (Base64 encode docker-compose)
+            - name: Prepare Docker Compose File
               id: prepare
+              # Base64 encode the compose file to pass it safely through SSM
               run: |
-                  # Encodes the docker-compose file for single-command transmission via SSM
                   echo "compose_b64=$(base64 -w0 docker-compose.prod.yml)" >> "$GITHUB_OUTPUT"
 
-            - name: Configure AWS credentials
+            - name: Configure AWS Credentials
               uses: aws-actions/configure-aws-credentials@v2
               with:
                   aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
                   aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-                  aws-region: ${{ secrets.AWS_REGION }} # Use secret for region
+                  aws-region: ${{ secrets.AWS_REGION }}
 
             - name: Deploy via SSM
-              env:
-                  COMPOSE_B64: ${{ steps.prepare.outputs.compose_b64 }}
-                  IMAGE_NAME: ${{ env.IMAGE_NAME }}
-                  IMAGE_TAG: ${{ env.IMAGE_TAG }}
-                  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-                  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
               run: |
-                  # The entire deployment script runs on the EC2 instance as root via SSM
-                  DEPLOY_SCRIPT=$(cat <<'EOF'
-                  set -e # Exit immediately if a command exits with a non-zero status
+                  # --- PART 1: Variable Injection ---
+                  # We use unquoted 'EOF' here. GitHub Actions will replace these ${{ }} placeholders 
+                  # with actual values BEFORE sending the script to EC2.
+                  SCRIPT_HEADER=$(cat <<EOF
+                  export DOCKER_USERNAME='${{ secrets.DOCKER_USERNAME }}'
+                  export DOCKER_PASSWORD='${{ secrets.DOCKER_PASSWORD }}'
+                  export IMAGE_NAME='${{ env.IMAGE_NAME }}'
+                  export IMAGE_TAG='${{ env.IMAGE_TAG }}'
+                  export COMPOSE_B64='${{ steps.prepare.outputs.compose_b64 }}'
+                  EOF
+                  )
 
-                  APP_DIR=/home/ec2-user/classconnect
-                  IMAGE_NAME="${IMAGE_NAME}"
-                  IMAGE_TAG="${IMAGE_TAG}"
+                  # --- PART 2: Deployment Logic ---
+                  # We use quoted 'EOF' here. GitHub Actions will NOT touch variables like $APP_DIR.
+                  # The EC2 instance will evaluate them.
+                  SCRIPT_BODY=$(cat <<'EOF'
+                  set -e # Stop script on first error
 
-                  # 1. Create directory and navigate (Running as root, so 'sudo' is not needed)
+                  # SSM runs as root, so we do NOT need sudo
+                  APP_DIR="/home/ec2-user/classconnect"
+
+                  echo "Starting deployment in $APP_DIR..."
+
+                  # 1. Create directory
                   mkdir -p "$APP_DIR"
                   cd "$APP_DIR"
 
-                  # 2. Decode and write docker-compose file (Directly write as root)
+                  # 2. Decode docker-compose file
                   echo "$COMPOSE_B64" | base64 -d > docker-compose.prod.yml
 
-                  # 3. Ensure env file exists on the instance
+                  # 3. Check for .env.prod file
                   if [ ! -f .env.prod ]; then
-                    echo ".env.prod is missing in $APP_DIR" >&2
+                    echo "Error: .env.prod is missing in $APP_DIR. Please upload it manually." >&2
                     exit 1
                   fi
 
-                  # 4. Docker Login (FIXED: Removed 'sudo' to ensure DOCKER_USERNAME is passed)
-                  echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+                  # 4. Docker Login
+                  # Now $DOCKER_PASSWORD and $DOCKER_USERNAME are populated from the header above
+                  echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
-                  # 5. Pull new image and restart stack (Removed 'sudo' from all docker compose commands)
-                  IMAGE_NAME="$IMAGE_NAME" IMAGE_TAG="$IMAGE_TAG" docker compose -f docker-compose.prod.yml pull
+                  # 5. Deployment Commands
+                  echo "Pulling images..."
+                  docker compose -f docker-compose.prod.yml pull
 
-                  IMAGE_NAME="$IMAGE_NAME" IMAGE_TAG="$IMAGE_TAG" docker compose -f docker-compose.prod.yml down
-                  IMAGE_NAME="$IMAGE_NAME" IMAGE_TAG="$IMAGE_TAG" docker compose -f docker-compose.prod.yml up -d database
+                  echo "Restarting containers..."
+                  docker compose -f docker-compose.prod.yml down
+                  docker compose -f docker-compose.prod.yml up -d database
 
-                  echo "Waiting for Postgres health..."
+                  echo "Waiting for Database health..."
                   until docker compose -f docker-compose.prod.yml ps database | grep -q "healthy"; do
                     sleep 5
                   done
 
-                  # Database migrations and seed scripts (Run as root, no 'sudo')
-                  IMAGE_NAME="$IMAGE_NAME" IMAGE_TAG="$IMAGE_TAG" docker compose -f docker-compose.prod.yml run --rm backend uv run alembic upgrade head
-                  IMAGE_NAME="$IMAGE_NAME" IMAGE_TAG="$IMAGE_TAG" docker compose -f docker-compose.prod.yml run --rm backend uv run python scripts/seed_deploy.py
+                  echo "Running Migrations..."
+                  docker compose -f docker-compose.prod.yml run --rm backend uv run alembic upgrade head
+                  docker compose -f docker-compose.prod.yml run --rm backend uv run python scripts/seed_deploy.py
 
-                  # Start backend service and prune old images
-                  IMAGE_NAME="$IMAGE_NAME" IMAGE_TAG="$IMAGE_TAG" docker compose -f docker-compose.prod.yml up -d backend
+                  echo "Starting Backend..."
+                  docker compose -f docker-compose.prod.yml up -d backend
+
+                  echo "Cleaning up..."
                   docker image prune -f
+
+                  echo "Deployment Complete!"
                   EOF
                   )
-                  # Prepare parameters for the SSM command
+
+                  # Combine Header and Body
+                  DEPLOY_SCRIPT="$SCRIPT_HEADER
+                  $SCRIPT_BODY"
+
+                  # Wrap in JSON for SSM
                   PARAMS=$(printf '%s' "$DEPLOY_SCRIPT" | jq -Rs '{commands:[.] }')
 
-                  # Send the deployment command
+                  # Send Command
                   COMMAND_ID=$(aws ssm send-command \
                     --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
                     --document-name "AWS-RunShellScript" \
@@ -112,8 +133,10 @@ jobs:
                     --query "Command.CommandId" \
                     --output text)
 
-                  echo "SSM command id: $COMMAND_ID"
+                  echo "SSM Command ID: $COMMAND_ID"
 
-                  # Wait for command execution and retrieve final output/status
+                  # Wait for result
                   aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
+
+                  # Get final output (logs)
                   aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
