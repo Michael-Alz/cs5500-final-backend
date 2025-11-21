@@ -57,7 +57,7 @@ jobs:
           DEPLOY_SCRIPT=$(cat <<'EOF'
           set -e
 
-          APP_DIR=/opt/classconnect
+          APP_DIR=/home/ec2-user/classconnect
           IMAGE_NAME="${IMAGE_NAME}"
           IMAGE_TAG="${IMAGE_TAG}"
 
