@@ -125,3 +125,13 @@ curl -I http://<your-ec2-public-dns>/health
 - Enable CloudWatch log shipping if you want centralized logs, or use `docker logs` locally
 - Regularly prune old images: `sudo docker image prune -f`
 - Back up the Postgres volume (`pgdata`), or snapshot the EBS volume as needed
+
+## 10) Useful Docker commands on EC2
+- Check stack status: `cd /home/ec2-user/classconnect && docker compose -f docker-compose.prod.yml ps`
+- Restart stack: `cd /home/ec2-user/classconnect && docker compose -f docker-compose.prod.yml up -d`
+- Inspect running containers: `docker ps`
+- Backend logs (follow): `docker logs -f classconnect-backend`
+- Database logs (follow): `docker logs -f classconnect-db`
+- One-off shell in backend: `cd /home/ec2-user/classconnect && docker compose -f docker-compose.prod.yml run --rm backend /bin/bash`
+- Re-run migrations manually: `cd /home/ec2-user/classconnect && docker compose -f docker-compose.prod.yml run --rm backend uv run alembic upgrade head`
+- (Optional) Seed manually: `cd /home/ec2-user/classconnect && docker compose -f docker-compose.prod.yml run --rm backend uv run python scripts/seed_deploy.py`
