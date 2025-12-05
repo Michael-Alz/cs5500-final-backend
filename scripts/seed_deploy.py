@@ -45,7 +45,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 1,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -53,7 +53,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 2,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -61,7 +61,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 3,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -69,7 +69,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 4,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -77,7 +77,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
             ],
@@ -91,7 +91,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 1,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -99,7 +99,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 2,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -107,7 +107,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 3,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -115,7 +115,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 4,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -123,7 +123,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
             ],
@@ -137,7 +137,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 1,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -145,7 +145,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 2,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -153,7 +153,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 3,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -161,7 +161,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 4,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -169,7 +169,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 5,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
             ],
@@ -183,7 +183,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 1,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -191,7 +191,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 2,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -199,7 +199,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 3,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -207,7 +207,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 4,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -215,7 +215,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 5,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
             ],
@@ -229,7 +229,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 5,
+                        "Reflective learner": 5,
                     },
                 },
                 {
@@ -237,7 +237,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 4,
+                        "Reflective learner": 4,
                     },
                 },
                 {
@@ -245,7 +245,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 3,
+                        "Reflective learner": 3,
                     },
                 },
                 {
@@ -253,7 +253,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 2,
+                        "Reflective learner": 2,
                     },
                 },
                 {
@@ -261,7 +261,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 1,
+                        "Reflective learner": 1,
                     },
                 },
             ],
@@ -275,7 +275,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 1,
+                        "Reflective learner": 1,
                     },
                 },
                 {
@@ -283,7 +283,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 2,
+                        "Reflective learner": 2,
                     },
                 },
                 {
@@ -291,7 +291,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 3,
+                        "Reflective learner": 3,
                     },
                 },
                 {
@@ -299,7 +299,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 4,
+                        "Reflective learner": 4,
                     },
                 },
                 {
@@ -307,7 +307,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 5,
+                        "Reflective learner": 5,
                     },
                 },
             ],
@@ -321,7 +321,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -329,7 +329,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 5,
+                        "Reflective learner": 5,
                     },
                 },
                 {
@@ -337,7 +337,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 5,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
             ],
@@ -351,7 +351,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -359,7 +359,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 5,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -367,7 +367,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 5,
+                        "Reflective learner": 5,
                     },
                 },
             ],
@@ -381,7 +381,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -389,7 +389,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 5,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                     },
                 },
                 {
@@ -397,7 +397,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 5,
+                        "Reflective learner": 5,
                     },
                 },
             ],
@@ -414,7 +414,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 1,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -423,7 +423,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 2,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -432,7 +432,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 3,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -441,7 +441,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 4,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -450,7 +450,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -468,7 +468,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 1,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -477,7 +477,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 2,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -486,7 +486,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 3,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -495,7 +495,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 4,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -504,7 +504,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -519,7 +519,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 1,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -528,7 +528,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 2,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -537,7 +537,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 3,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -546,7 +546,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 4,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -555,7 +555,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 5,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -570,7 +570,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 1,
                     },
                 },
@@ -579,7 +579,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 2,
                     },
                 },
@@ -588,7 +588,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 3,
                     },
                 },
@@ -597,7 +597,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 4,
                     },
                 },
@@ -606,7 +606,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 5,
                     },
                 },
@@ -621,7 +621,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 5,
+                        "Reflective learner": 5,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -630,7 +630,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 5,
                     },
                 },
@@ -639,7 +639,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -654,7 +654,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -663,7 +663,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 5,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -672,7 +672,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 5,
                     },
                 },
@@ -681,7 +681,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 5,
+                        "Reflective learner": 5,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -696,7 +696,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -705,7 +705,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 5,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -714,7 +714,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 5,
+                        "Reflective learner": 5,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -723,7 +723,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 5,
                     },
                 },
@@ -738,7 +738,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 5,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -747,7 +747,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 5,
                     },
                 },
@@ -756,7 +756,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -765,7 +765,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 5,
+                        "Reflective learner": 5,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -780,7 +780,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 5,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 0,
                     },
                 },
@@ -789,7 +789,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 0,
+                        "Reflective learner": 0,
                         "Buddy/Social learner": 5,
                     },
                 },
@@ -798,7 +798,7 @@ def seed_surveys(db: Session) -> None:
                     "scores": {
                         "Active learner": 0,
                         "Structured learner": 0,
-                        "Passive learner": 5,
+                        "Reflective learner": 5,
                         "Buddy/Social learner": 0,
                     },
                 },
